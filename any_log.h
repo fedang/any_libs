@@ -201,14 +201,14 @@ void any_log_exit(const char *module, const char *func)
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...)
 {
-	fprintf(stdout, ANY_LOG_FORMAT_BEFORE(level, module, func));
+    fprintf(stdout, ANY_LOG_FORMAT_BEFORE(level, module, func));
 
     va_list args;
     va_start(args, format);
     vfprintf(stdout, format, args);
     va_end(args);
 
-	fprintf(stdout, ANY_LOG_FORMAT_AFTER(level, module, func));
+    fprintf(stdout, ANY_LOG_FORMAT_AFTER(level, module, func));
 
     // NOTE: Suppress compiler warning if the user customizes the format string
     //       and doesn't use these values in it
