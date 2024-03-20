@@ -1,7 +1,24 @@
+// any_log
+//
+// A single header library that provides a simple and somewhat opinionated
+// interface for logging and structured logging.
+//
+// To use this library you should choose a suitable file to put the
+// implementation and define ANY_LOG_IMPLEMENT. For example
+//
+//    #define ANY_LOG_IMPLEMENT
+//    #include "any_log.h"
+//
+// Additionally, you can customize the library behavior by defining certain
+// macros in the file where you put the implementation. You can see which are
+// supported by reading the code guarded by ANY_LOG_IMPLEMENT.
+//
+// This library is licensed under the terms of the MIT license.
+// A copy of the license is included at the end of this file.
+//
+
 #ifndef ANY_LOG_INCLUDE
 #define ANY_LOG_INCLUDE
-
-// any_log
 
 // These values represent the decreasing urgency of a log invocation.
 //
@@ -84,10 +101,10 @@ typedef enum {
 
 extern const char *any_log_level_strings[ANY_LOG_ALL];
 
-ANY_LOG_ATTRIBUTE(const)
+ANY_LOG_ATTRIBUTE(pure)
 const char *any_log_level_to_string(any_log_level_t level);
 
-ANY_LOG_ATTRIBUTE(const)
+ANY_LOG_ATTRIBUTE(pure)
 any_log_level_t any_log_level_from_string(const char *string);
 
 ANY_LOG_ATTRIBUTE(noreturn)
@@ -141,7 +158,7 @@ const char *any_log_level_strings[ANY_LOG_ALL] = {
 
 const char *any_log_level_to_string(any_log_level_t level)
 {
-    return (level >= ANY_LOG_PANIC && level <= ANY_LOG_TRACE)
+    return level >= ANY_LOG_PANIC && level <= ANY_LOG_TRACE
         ? any_log_level_strings[level] : "";
 }
 
@@ -160,7 +177,7 @@ any_log_level_t any_log_level_from_string(const char *string)
 // to take in any_log_exit.
 // By default it is abort
 //
-// NOTE: That any_log_exit should never return!
+// NOTE: The function any_log_exit should never return!
 //
 #ifndef ANY_LOG_PANIC
 #define ANY_LOG_PANIC(module, func) abort()
@@ -192,8 +209,34 @@ void any_log_format(any_log_level_t level, const char *module,
     va_end(args);
 
 	fprintf(stdout, ANY_LOG_FORMAT_AFTER(level, module, func));
+
+    // NOTE: Suppress compiler warning if the user customizes the format string
+    //       and doesn't use these values in it
+    (void)module;
+    (void)func;
 }
 
 #endif
 
-// vim: ts=4 sw=4 et
+// MIT License
+//
+// Copyright (c) 2024 Federico Angelilli
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
