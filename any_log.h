@@ -104,6 +104,7 @@ void any_log_format(any_log_level_t level, const char *module,
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef ANY_LOG_PANIC_STRING
 #define ANY_LOG_PANIC_STRING "panic"
@@ -129,7 +130,7 @@ void any_log_format(any_log_level_t level, const char *module,
 #define ANY_LOG_TRACE_STRING "trace"
 #endif
 
-static const char *log_level_strings[ANY_LOG_ALL] = {
+const char *any_log_level_strings[ANY_LOG_ALL] = {
     ANY_LOG_PANIC_STRING,
     ANY_LOG_ERROR_STRING,
     ANY_LOG_WARN_STRING,
@@ -137,6 +138,22 @@ static const char *log_level_strings[ANY_LOG_ALL] = {
     ANY_LOG_DEBUG_STRING,
     ANY_LOG_TRACE_STRING,
 };
+
+const char *any_log_level_to_string(any_log_level_t level)
+{
+    return (level >= ANY_LOG_PANIC && level <= ANY_LOG_TRACE)
+        ? any_log_level_strings[level] : "";
+}
+
+any_log_level_t any_log_level_from_string(const char *string)
+{
+    for (any_log_level_t level = ANY_LOG_PANIC; level < ANY_LOG_ALL; level++) {
+        if (strcmp(any_log_level_strings[level], string) == 0)
+            return level;
+    }
+
+    return ANY_LOG_ALL;
+}
 
 // Using log_panic results in a call to any_log_exit, which should terminate
 // the program. The value of ANY_LOG_PANIC is used to specify what action
@@ -156,27 +173,25 @@ void any_log_exit(const char *module, const char *func)
 }
 
 #ifndef ANY_LOG_FORMAT_BEFORE
-#define ANY_LOG_FORMAT_BEFORE(level, module, func, level_strings) \
-    "[%s %s] %s: ", module, func, level_strings[level]
+#define ANY_LOG_FORMAT_BEFORE(level, module, func) \
+    "[%s %s] %s: ", module, func, any_log_level_strings[level]
 #endif
 
 #ifndef ANY_LOG_FORMAT_AFTER
-#define ANY_LOG_FORMAT_AFTER(level, module, func, levels) "\n"
+#define ANY_LOG_FORMAT_AFTER(level, module, func) "\n"
 #endif
 
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...)
 {
-	fprintf(stdout,
-            ANY_LOG_FORMAT_BEFORE(level, module, func, log_level_strings));
+	fprintf(stdout, ANY_LOG_FORMAT_BEFORE(level, module, func));
 
     va_list args;
     va_start(args, format);
     vfprintf(stdout, format, args);
     va_end(args);
 
-	fprintf(stdout,
-            ANY_LOG_FORMAT_AFTER(level, module, func, log_level_strings));
+	fprintf(stdout, ANY_LOG_FORMAT_AFTER(level, module, func));
 }
 
 #endif
