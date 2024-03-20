@@ -99,6 +99,8 @@ typedef enum {
 #define ANY_LOG_ATTRIBUTE(...)
 #endif
 
+extern any_log_level_t any_log_level;
+
 extern const char *any_log_level_strings[ANY_LOG_ALL];
 
 ANY_LOG_ATTRIBUTE(pure)
@@ -122,6 +124,12 @@ void any_log_format(any_log_level_t level, const char *module,
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef ANY_LOG_DEFAULT_LEVEL
+#define ANY_LOG_DEFAULT_LEVEL ANY_LOG_INFO
+#endif
+
+any_log_level_t any_log_level = ANY_LOG_DEFAULT_LEVEL;
 
 #ifndef ANY_LOG_PANIC_STRING
 #define ANY_LOG_PANIC_STRING "panic"
@@ -201,6 +209,9 @@ void any_log_exit(const char *module, const char *func)
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...)
 {
+    if (level > any_log_level)
+        return;
+
     fprintf(stdout, ANY_LOG_FORMAT_BEFORE(level, module, func));
 
     va_list args;
