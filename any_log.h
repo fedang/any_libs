@@ -1,6 +1,27 @@
 #ifndef ANY_LOG_INCLUDE
 #define ANY_LOG_INCLUDE
 
+// any_log
+
+// These values represent the decreasing urgency of a log invocation.
+//
+// panic: indicates a fatal error and using it will result in
+//        the program termination (see any_log_exit)
+//
+// error: indicates a (non-fatal) error
+//
+// warn: indicates a warning
+//
+// info: indicates an information (potentially useful to the user)
+//
+// debug: indicates debugging information
+//
+// trace: indicates verbose debugging information and can be completely
+//        disabled by defining ANY_LOG_NO_TRACE before including
+//
+// NOTE: The value ANY_LOG_ALL is not an actual level and it is used as
+//       a sentinel to indicate the last value of any_log_level_t
+//
 typedef enum {
     ANY_LOG_PANIC,
     ANY_LOG_ERROR,
@@ -55,11 +76,26 @@ typedef enum {
     any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #endif
 
+#ifdef __GNUC__
+#define ANY_LOG_ATTRIBUTE(...) __attribute__((__VA_ARGS__))
+#else
+#define ANY_LOG_ATTRIBUTE(...)
+#endif
+
+extern const char *any_log_level_strings[ANY_LOG_ALL];
+
+ANY_LOG_ATTRIBUTE(const)
+const char *any_log_level_to_string(any_log_level_t level);
+
+ANY_LOG_ATTRIBUTE(const)
+any_log_level_t any_log_level_from_string(const char *string);
+
+ANY_LOG_ATTRIBUTE(noreturn)
 void any_log_exit(const char *module, const char *func);
 
+ANY_LOG_ATTRIBUTE(format(printf, 4, 5))
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...);
-
 
 #endif
 
