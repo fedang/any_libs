@@ -15,6 +15,7 @@
 
 int main()
 {
+    any_log_init(stdout, ANY_LOG_DEBUG);
 
     // Test any_log_level_to_string
     log_trace("ANY_LOG_PANIC = %s", any_log_level_to_string(ANY_LOG_PANIC));

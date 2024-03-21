@@ -20,6 +20,8 @@
 #ifndef ANY_LOG_INCLUDE
 #define ANY_LOG_INCLUDE
 
+#include <stdio.h>
+
 // These values represent the decreasing urgency of a log invocation.
 //
 // panic: indicates a fatal error and using it will result in
@@ -196,6 +198,13 @@ typedef enum {
 extern "C" {
 #endif
 
+// All log functions will output to the file stream specified by any_log_stream.
+//
+// You should always set this global to a valid stream (eg in main) before
+// invoking any log macro or function!
+//
+extern FILE *any_log_stream;
+
 // All log functions will ignore the message if the level is below the
 // threshold specified in any_log_level.
 //
@@ -204,6 +213,14 @@ extern "C" {
 // By default it has value ANY_LOG_LEVEL_DEFAULT (see implementation).
 //
 extern any_log_level_t any_log_level;
+
+// This is a simple utility function that sets both any_log_level and
+// any_log_stream with a single call.
+//
+// Call this function before any use of log_* (for example in main) to
+// correctly initialize the library!
+//
+void any_log_init(FILE *stream, any_log_level_t level);
 
 // An array containing the strings corresponding to the log levels.
 //
@@ -277,9 +294,15 @@ void any_log_panic(const char *file, int line, const char *module,
 #ifdef ANY_LOG_IMPLEMENT
 
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// For the C standard we can't assign stdout or any other streams here,
+// since they are not constant.
+//
+// Thus it is imperative to set this variable to a valid FILE * before using it!
+//
+FILE *any_log_stream = NULL;
 
 // The default value for any_log_level
 #ifndef ANY_LOG_LEVEL_DEFAULT
@@ -287,6 +310,13 @@ void any_log_panic(const char *file, int line, const char *module,
 #endif
 
 any_log_level_t any_log_level = ANY_LOG_LEVEL_DEFAULT;
+
+// Utility function to initialize the library
+void any_log_init(FILE *stream, any_log_level_t level)
+{
+    any_log_stream = stream;
+    any_log_level = level;
+}
 
 // Log level strings
 #ifndef ANY_LOG_PANIC_STRING
@@ -404,14 +434,14 @@ void any_log_format(any_log_level_t level, const char *module,
     if (level > any_log_level)
         return;
 
-    fprintf(stdout, ANY_LOG_FORMAT_BEFORE(level, module, func));
+    fprintf(any_log_stream, ANY_LOG_FORMAT_BEFORE(level, module, func));
 
     va_list args;
     va_start(args, format);
-    vfprintf(stdout, format, args);
+    vfprintf(any_log_stream, format, args);
     va_end(args);
 
-    fprintf(stdout, ANY_LOG_FORMAT_AFTER(level, module, func));
+    fprintf(any_log_stream, ANY_LOG_FORMAT_AFTER(level, module, func));
 
     // NOTE: Suppress compiler warning if the user customizes the format string
     //       and doesn't use these values in it
@@ -480,7 +510,7 @@ void any_log_value(any_log_level_t level, const char *module,
     if (level > any_log_level)
         return;
 
-    fprintf(stdout, ANY_LOG_VALUE_BEFORE(level, module, func, message));
+    fprintf(any_log_stream, ANY_LOG_VALUE_BEFORE(level, module, func, message));
 
     va_list args;
     va_start(args, message);
@@ -494,24 +524,24 @@ void any_log_value(any_log_level_t level, const char *module,
             switch (key[-2]) {
                 case 'd':
                 case 'i':
-                    fprintf(stdout, ANY_LOG_VALUE_INT(key, va_arg(args, int)));
+                    fprintf(any_log_stream, ANY_LOG_VALUE_INT(key, va_arg(args, int)));
                     break;
 
                 case 'x':
                 case 'u':
-                    fprintf(stdout, ANY_LOG_VALUE_HEX(key, va_arg(args, unsigned int)));
+                    fprintf(any_log_stream, ANY_LOG_VALUE_HEX(key, va_arg(args, unsigned int)));
                     break;
 
                 case 'p':
-                    fprintf(stdout, ANY_LOG_VALUE_PTR(key, va_arg(args, void *)));
+                    fprintf(any_log_stream, ANY_LOG_VALUE_PTR(key, va_arg(args, void *)));
                     break;
 
                 case 'f':
-                    fprintf(stdout, ANY_LOG_VALUE_DOUBLE(key, va_arg(args, double)));
+                    fprintf(any_log_stream, ANY_LOG_VALUE_DOUBLE(key, va_arg(args, double)));
                     break;
 
                 case 's':
-                    fprintf(stdout, ANY_LOG_VALUE_STRING(key, va_arg(args, char *)));
+                    fprintf(any_log_stream, ANY_LOG_VALUE_STRING(key, va_arg(args, char *)));
                     break;
 
                 default:
@@ -519,18 +549,18 @@ void any_log_value(any_log_level_t level, const char *module,
             }
         } else {
 tdefault:
-            fprintf(stdout, ANY_LOG_VALUE_DEFAULT(key, va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE)));
+            fprintf(any_log_stream, ANY_LOG_VALUE_DEFAULT(key, va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE)));
         }
 
         key = va_arg(args, char *);
         if (key == NULL)
             break;
 
-        fprintf(stdout, ANY_LOG_VALUE_PAIR_SEP);
+        fprintf(any_log_stream, ANY_LOG_VALUE_PAIR_SEP);
     }
 
     va_end(args);
-    fprintf(stdout, ANY_LOG_VALUE_AFTER(level, module, func, message));
+    fprintf(any_log_stream, ANY_LOG_VALUE_AFTER(level, module, func, message));
 
     (void)module;
     (void)func;
@@ -568,14 +598,14 @@ tdefault:
 void any_log_panic(const char *file, int line, const char *module,
                    const char *func, const char *format, ...)
 {
-    fprintf(stdout, ANY_LOG_PANIC_BEFORE(file, line, module, func));
+    fprintf(any_log_stream, ANY_LOG_PANIC_BEFORE(file, line, module, func));
 
     va_list args;
     va_start(args, format);
-    vfprintf(stdout, format, args);
+    vfprintf(any_log_stream, format, args);
     va_end(args);
 
-    fprintf(stdout, ANY_LOG_PANIC_AFTER(file, line, module, func));
+    fprintf(any_log_stream, ANY_LOG_PANIC_AFTER(file, line, module, func));
 
     (void)module;
     (void)func;
