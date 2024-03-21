@@ -192,6 +192,10 @@ typedef enum {
 #define ANY_LOG_ATTRIBUTE(...)
 #endif
 
+#ifdef __cpluscplus
+extern "C" {
+#endif
+
 // All log functions will ignore the message if the level is below the
 // threshold specified in any_log_level.
 //
@@ -233,6 +237,10 @@ ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
 ANY_LOG_ATTRIBUTE(nonnull(1, 4))
 void any_log_panic(const char *file, int line, const char *module,
                    const char *func, const char *format, ...);
+
+#ifdef __cpluscplus
+}
+#endif
 
 #endif
 
@@ -287,9 +295,9 @@ const char *any_log_level_to_string(any_log_level_t level)
 
 any_log_level_t any_log_level_from_string(const char *string)
 {
-    for (any_log_level_t level = ANY_LOG_PANIC; level < ANY_LOG_ALL; level++) {
+    for (int level = ANY_LOG_PANIC; level < ANY_LOG_ALL; level++) {
         if (strcmp(any_log_level_strings[level], string) == 0)
-            return level;
+            return (any_log_level_t)level;
     }
 
     return ANY_LOG_ALL;
