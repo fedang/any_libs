@@ -86,11 +86,27 @@ typedef enum {
 #define log_debug(...) \
     any_log_format(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
+#define log_value_error(...) \
+    any_log_value(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+
+#define log_value_warn(...)  \
+    any_log_value(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+
+#define log_value_info(...)  \
+    any_log_value(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+
+#define log_value_debug(...) \
+    any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+
 #ifdef ANY_LOG_NO_TRACE
 #define log_trace(...)
+#define log_value_trace(...)
 #else
 #define log_trace(...) \
     any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+
+#define log_value_trace(...) \
+    any_log_value(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #endif
 
 #ifdef __GNUC__
@@ -116,6 +132,9 @@ ANY_LOG_ATTRIBUTE(format(printf, 4, 5))
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...);
 
+void any_log_value(any_log_level_t level, const char *module,
+                   const char *func, const char *message, ...);
+
 #endif
 
 #ifdef ANY_LOG_IMPLEMENT
@@ -125,11 +144,11 @@ void any_log_format(any_log_level_t level, const char *module,
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef ANY_LOG_DEFAULT_LEVEL
-#define ANY_LOG_DEFAULT_LEVEL ANY_LOG_INFO
+#ifndef ANY_LOG_LEVEL_DEFAULT
+#define ANY_LOG_LEVEL_DEFAULT ANY_LOG_INFO
 #endif
 
-any_log_level_t any_log_level = ANY_LOG_DEFAULT_LEVEL;
+any_log_level_t any_log_level = ANY_LOG_LEVEL_DEFAULT;
 
 #ifndef ANY_LOG_PANIC_STRING
 #define ANY_LOG_PANIC_STRING "panic"
@@ -225,6 +244,124 @@ void any_log_format(any_log_level_t level, const char *module,
     //       and doesn't use these values in it
     (void)module;
     (void)func;
+}
+
+// NOTE: Must be a character
+#ifndef ANY_LOG_VALUE_TYPE_SEP
+#define ANY_LOG_VALUE_TYPE_SEP ':'
+#endif
+
+#ifndef ANY_LOG_VALUE_BEFORE
+#define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
+    "[%s %s] %s: %s [", module, func, any_log_level_strings[level], message
+#endif
+
+#ifndef ANY_LOG_VALUE_INT
+#define ANY_LOG_VALUE_INT(key, value) "%s=%d", key, value
+#endif
+
+#ifndef ANY_LOG_VALUE_HEX
+#define ANY_LOG_VALUE_HEX(key, value) "%s=%#x", key, value
+#endif
+
+#ifndef ANY_LOG_VALUE_PTR
+#define ANY_LOG_VALUE_PTR(key, value) "%s=%p", key, value
+#endif
+
+#ifndef ANY_LOG_VALUE_DOUBLE
+#define ANY_LOG_VALUE_DOUBLE(key, value) "%s=%lf", key, value
+#endif
+
+#ifndef ANY_LOG_VALUE_STRING
+#define ANY_LOG_VALUE_STRING(key, value) "%s=\"%s\"", key, value
+#endif
+
+#ifndef ANY_LOG_VALUE_DEFAULT
+#define ANY_LOG_VALUE_DEFAULT ANY_LOG_VALUE_STRING
+#define ANY_LOG_VALUE_DEFAULT_TYPE char *
+#endif
+
+#ifndef ANY_LOG_VALUE_PAIR_SEP
+#define ANY_LOG_VALUE_PAIR_SEP ", "
+#endif
+
+#ifndef ANY_LOG_VALUE_AFTER
+#define ANY_LOG_VALUE_AFTER(level, module, func, message) "]\n"
+#endif
+
+// Possible value type specifier
+//
+// d (or i): int
+// x (or u): unsigned int
+// p: void *
+// f: double
+// s: string
+//
+// NOTE: If no type specifier is given the function will assume type string
+//
+void any_log_value(any_log_level_t level, const char *module,
+                   const char *func, const char *message, ...)
+{
+    if (level > any_log_level)
+        return;
+
+    fprintf(stdout, ANY_LOG_VALUE_BEFORE(level, module, func, message));
+
+    va_list args;
+    va_start(args, message);
+
+    // NOTE: This function should be called with at least one pair
+    char *key = va_arg(args, char *);
+
+    while (key != NULL) {
+        if (key[0] != '\0' && key[1] == ANY_LOG_VALUE_TYPE_SEP) {
+            key += 2;
+            switch (key[-2]) {
+                case 'd':
+                case 'i':
+                    fprintf(stdout, ANY_LOG_VALUE_INT(key, va_arg(args, int)));
+                    break;
+
+                case 'x':
+                case 'u':
+                    fprintf(stdout, ANY_LOG_VALUE_HEX(key, va_arg(args, unsigned int)));
+                    break;
+
+                case 'p':
+                    fprintf(stdout, ANY_LOG_VALUE_PTR(key, va_arg(args, void *)));
+                    break;
+
+                case 'f':
+                    fprintf(stdout, ANY_LOG_VALUE_DOUBLE(key, va_arg(args, double)));
+                    break;
+
+                case 's':
+                    fprintf(stdout, ANY_LOG_VALUE_STRING(key, va_arg(args, char *)));
+                    break;
+
+                default:
+                    goto tdefault;
+            }
+        } else {
+tdefault:
+            fprintf(stdout, ANY_LOG_VALUE_DEFAULT(key, va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE)));
+        }
+
+        key = va_arg(args, char *);
+        if (key == NULL)
+            break;
+
+        fprintf(stdout, ANY_LOG_VALUE_PAIR_SEP);
+    }
+
+    va_end(args);
+    fprintf(stdout, ANY_LOG_VALUE_AFTER(level, module, func, message));
+
+    // NOTE: Suppress compiler warning if the user customizes the format string
+    //       and doesn't use these values in it
+    (void)module;
+    (void)func;
+    (void)message;
 }
 
 #endif

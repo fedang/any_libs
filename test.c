@@ -33,6 +33,16 @@ int main()
     log_trace("ANY_LOG_TRACE = %d = %d", ANY_LOG_TRACE,
             any_log_level_from_string(ANY_LOG_TRACE_STRING));
 
+    // Test any_log_value
+
+    log_value_warn("Hello",
+            "this is a", "string");
+
+    log_value_info("I'll try",
+            "d:this is ", 10,
+            "f:dbl", 20.3333,
+            "p:a", NULL);
+
     // Test any_log_format
 
     log_trace("Hello");
