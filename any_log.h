@@ -23,7 +23,7 @@
 // These values represent the decreasing urgency of a log invocation.
 //
 // panic: indicates a fatal error and using it will result in
-//        the program termination (see any_log_exit)
+//        the program termination (see any_log_panic)
 //
 // error: indicates a (non-fatal) error
 //
@@ -69,10 +69,7 @@ typedef enum {
 #endif
 
 #define log_panic(...) \
-    do { \
-        any_log_format(ANY_LOG_PANIC, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__); \
-        any_log_exit(ANY_LOG_MODULE, ANY_LOG_FUNC); \
-    } while (0)
+    any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
 #define log_error(...) \
     any_log_format(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
@@ -125,15 +122,17 @@ const char *any_log_level_to_string(any_log_level_t level);
 ANY_LOG_ATTRIBUTE(pure)
 any_log_level_t any_log_level_from_string(const char *string);
 
-ANY_LOG_ATTRIBUTE(noreturn)
-void any_log_exit(const char *module, const char *func);
-
 ANY_LOG_ATTRIBUTE(format(printf, 4, 5))
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...);
 
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...);
+
+ANY_LOG_ATTRIBUTE(noreturn)
+ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
+void any_log_panic(const char *file, int line, const char *module,
+                   const char *func, const char *format, ...);
 
 #endif
 
@@ -197,23 +196,6 @@ any_log_level_t any_log_level_from_string(const char *string)
     }
 
     return ANY_LOG_ALL;
-}
-
-// Using log_panic results in a call to any_log_exit, which should terminate
-// the program. The value of ANY_LOG_PANIC is used to specify what action
-// to take in any_log_exit.
-// By default it is abort
-//
-// NOTE: The function any_log_exit should never return!
-//
-#ifndef ANY_LOG_PANIC
-#define ANY_LOG_PANIC(module, func) abort()
-#endif
-
-// NOTE: This function should be called solely by the macro log_panic
-void any_log_exit(const char *module, const char *func)
-{
-    ANY_LOG_PANIC(module, func);
 }
 
 #ifndef ANY_LOG_FORMAT_BEFORE
@@ -357,11 +339,56 @@ tdefault:
     va_end(args);
     fprintf(stdout, ANY_LOG_VALUE_AFTER(level, module, func, message));
 
-    // NOTE: Suppress compiler warning if the user customizes the format string
-    //       and doesn't use these values in it
     (void)module;
     (void)func;
     (void)message;
+}
+
+// Using log_panic results in a call to any_log_panic, which should terminate
+// the program. The value of ANY_LOG_EXIT is used to specify an action to
+// take at the end of the aforementioned function.
+// By default it is abort
+//
+// NOTE: This function should never return!
+//
+#ifndef ANY_LOG_EXIT
+#define ANY_LOG_EXIT(file, line, module, func) abort()
+#endif
+
+#ifndef ANY_LOG_PANIC_BEFORE
+#define ANY_LOG_PANIC_BEFORE(file, line, module, func) \
+    "[%s %s] %s: ", module, func, any_log_level_strings[ANY_LOG_PANIC]
+#endif
+
+#ifndef ANY_LOG_PANIC_AFTER
+#define ANY_LOG_PANIC_AFTER(file, line, module, func) \
+    "\npanic was invoked from %s:%d (%s)\n", file, line, module
+#endif
+
+// NOTE: This function *exceptionally* gets more location information
+//       because we want to be specific at least for fatal errors
+//
+void any_log_panic(const char *file, int line, const char *module,
+                   const char *func, const char *format, ...)
+{
+    fprintf(stdout, ANY_LOG_PANIC_BEFORE(file, line, module, func));
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(stdout, format, args);
+    va_end(args);
+
+    fprintf(stdout, ANY_LOG_PANIC_AFTER(file, line, module, func));
+
+    (void)module;
+    (void)func;
+    (void)file;
+    (void)line;
+
+    ANY_LOG_EXIT(file, line, module, func);
+
+    // In a way or another, this function shall not return
+    abort();
 }
 
 #endif
