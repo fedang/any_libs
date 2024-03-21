@@ -220,6 +220,13 @@ const char *any_log_level_to_string(any_log_level_t level);
 ANY_LOG_ATTRIBUTE(pure)
 any_log_level_t any_log_level_from_string(const char *string);
 
+// Colors
+extern const char **any_log_colors;
+
+extern const char *any_log_colors_default[ANY_LOG_ALL + 3];
+
+extern const char *any_log_colors_disabled[ANY_LOG_ALL + 3];
+
 // NOTE: You should never call the functions below directly!
 //       See the above explanations on how to use logging.
 
@@ -303,9 +310,60 @@ any_log_level_t any_log_level_from_string(const char *string)
     return ANY_LOG_ALL;
 }
 
+const char **any_log_colors = any_log_colors_default;
+
+// Log colors indexed by log level, with the addition of special colors
+// for func, module and reset sequence.
+//
+#ifndef ANY_LOG_PANIC_COLOR
+#define ANY_LOG_PANIC_COLOR "\x1b[1;91m"
+#endif
+#ifndef ANY_LOG_ERROR_COLOR
+#define ANY_LOG_ERROR_COLOR "\x1b[31m"
+#endif
+#ifndef ANY_LOG_WARN_COLOR
+#define ANY_LOG_WARN_COLOR "\x1b[1;33m"
+#endif
+#ifndef ANY_LOG_INFO_COLOR
+#define ANY_LOG_INFO_COLOR "\x1b[1;96m"
+#endif
+#ifndef ANY_LOG_DEBUG_COLOR
+#define ANY_LOG_DEBUG_COLOR "\x1b[1;37m"
+#endif
+#ifndef ANY_LOG_TRACE_COLOR
+#define ANY_LOG_TRACE_COLOR "\x1b[1;90m"
+#endif
+#ifndef ANY_LOG_RESET_COLOR
+#define ANY_LOG_RESET_COLOR "\x1b[0m"
+#endif
+#ifndef ANY_LOG_MODULE_COLOR
+#define ANY_LOG_MODULE_COLOR ""
+#endif
+#ifndef ANY_LOG_FUNC_COLOR
+#define ANY_LOG_FUNC_COLOR "\x1b[1m"
+#endif
+
+const char *any_log_colors_default[ANY_LOG_ALL + 3] = {
+    ANY_LOG_PANIC_COLOR,
+    ANY_LOG_ERROR_COLOR,
+    ANY_LOG_WARN_COLOR,
+    ANY_LOG_INFO_COLOR ,
+    ANY_LOG_DEBUG_COLOR,
+    ANY_LOG_TRACE_COLOR,
+    ANY_LOG_RESET_COLOR,
+    ANY_LOG_MODULE_COLOR,
+    ANY_LOG_FUNC_COLOR
+};
+
+const char *any_log_colors_disabled[ANY_LOG_ALL + 3] = {
+    "", "", "", "", "", "", "",
+};
+
 // Format for any_log_format (used at the start)
 #ifndef ANY_LOG_FORMAT_BEFORE
-#define ANY_LOG_FORMAT_BEFORE(level, module, func) "[%s %s] %s: ", module, func, any_log_level_strings[level]
+#define ANY_LOG_FORMAT_BEFORE(level, module, func) \
+    "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
+    func, any_log_colors[ANY_LOG_ALL], any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL]
 #endif
 
 // Format for any_log_format (used at the end)
@@ -336,7 +394,9 @@ void any_log_format(any_log_level_t level, const char *module,
 
 // Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
-#define ANY_LOG_VALUE_BEFORE(level, module, func, message) "[%s %s] %s: %s [", module, func, any_log_level_strings[level], message
+#define ANY_LOG_VALUE_BEFORE(level, module, func) \
+    "[%s%s%s %s%s%s] %s%s%s: %s", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
+    func, any_log_colors[ANY_LOG_ALL], any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL], message
 #endif
 
 // Format for any_log_value (used at the end)
@@ -463,12 +523,16 @@ tdefault:
 
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_BEFORE
-#define ANY_LOG_PANIC_BEFORE(file, line, module, func) "[%s %s] %s: ", module, func, any_log_level_strings[ANY_LOG_PANIC]
+#define ANY_LOG_PANIC_BEFORE(file, line, module, func) \
+    "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
+    func, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_PANIC], any_log_level_strings[ANY_LOG_PANIC], any_log_colors[ANY_LOG_ALL]
 #endif
 
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_AFTER
-#define ANY_LOG_PANIC_AFTER(file, line, module, func) "\npanic was invoked from %s:%d (%s)\n", file, line, module
+#define ANY_LOG_PANIC_AFTER(file, line, module, func) \
+    "\n%spanic was invoked from%s %s:%d (%s%s%s)\n", any_log_colors[ANY_LOG_PANIC], any_log_colors[ANY_LOG_ALL], \
+    file, line, any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL]
 #endif
 
 // NOTE: This function *exceptionally* gets more location information
