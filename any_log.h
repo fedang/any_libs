@@ -68,42 +68,28 @@ typedef enum {
 #define ANY_LOG_FUNC __func__
 #endif
 
-#define log_panic(...) \
-    any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+// Panic has special handling
+#define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
-#define log_error(...) \
-    any_log_format(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+// Normal logging functions
+#define log_error(...) any_log_format(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_warn(...)  any_log_format(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_info(...)  any_log_format(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_debug(...) any_log_format(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
-#define log_warn(...)  \
-    any_log_format(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+// Structured logging functions
+#define log_value_error(...) any_log_value(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_warn(...)  any_log_value(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_info(...)  any_log_value(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 
-#define log_info(...)  \
-    any_log_format(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
-
-#define log_debug(...) \
-    any_log_format(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
-
-#define log_value_error(...) \
-    any_log_value(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-
-#define log_value_warn(...)  \
-    any_log_value(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-
-#define log_value_info(...)  \
-    any_log_value(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-
-#define log_value_debug(...) \
-    any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-
+// Optional trace log level
 #ifdef ANY_LOG_NO_TRACE
 #define log_trace(...)
 #define log_value_trace(...)
 #else
-#define log_trace(...) \
-    any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
-
-#define log_value_trace(...) \
-    any_log_value(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_trace(...) any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_value_trace(...) any_log_value(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #endif
 
 #ifdef __GNUC__
@@ -199,8 +185,7 @@ any_log_level_t any_log_level_from_string(const char *string)
 }
 
 #ifndef ANY_LOG_FORMAT_BEFORE
-#define ANY_LOG_FORMAT_BEFORE(level, module, func) \
-    "[%s %s] %s: ", module, func, any_log_level_strings[level]
+#define ANY_LOG_FORMAT_BEFORE(level, module, func) "[%s %s] %s: ", module, func, any_log_level_strings[level]
 #endif
 
 #ifndef ANY_LOG_FORMAT_AFTER
@@ -234,8 +219,7 @@ void any_log_format(any_log_level_t level, const char *module,
 #endif
 
 #ifndef ANY_LOG_VALUE_BEFORE
-#define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
-    "[%s %s] %s: %s [", module, func, any_log_level_strings[level], message
+#define ANY_LOG_VALUE_BEFORE(level, module, func, message) "[%s %s] %s: %s [", module, func, any_log_level_strings[level], message
 #endif
 
 #ifndef ANY_LOG_VALUE_INT
@@ -356,13 +340,11 @@ tdefault:
 #endif
 
 #ifndef ANY_LOG_PANIC_BEFORE
-#define ANY_LOG_PANIC_BEFORE(file, line, module, func) \
-    "[%s %s] %s: ", module, func, any_log_level_strings[ANY_LOG_PANIC]
+#define ANY_LOG_PANIC_BEFORE(file, line, module, func) "[%s %s] %s: ", module, func, any_log_level_strings[ANY_LOG_PANIC]
 #endif
 
 #ifndef ANY_LOG_PANIC_AFTER
-#define ANY_LOG_PANIC_AFTER(file, line, module, func) \
-    "\npanic was invoked from %s:%d (%s)\n", file, line, module
+#define ANY_LOG_PANIC_AFTER(file, line, module, func) "\npanic was invoked from %s:%d (%s)\n", file, line, module
 #endif
 
 // NOTE: This function *exceptionally* gets more location information
