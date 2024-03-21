@@ -68,27 +68,108 @@ typedef enum {
 #define ANY_LOG_FUNC __func__
 #endif
 
-// Panic has special handling
+// log_panic is implemented with the function any_log_panic, which takes
+// some extra parameters compared with the other log levels. This way we can
+// include as many information as possible for identifying fatal errors.
+//
+// You can change the format string and exit function in the implementation
+// (see ANY_LOG_EXIT, ANY_LOG_PANIC_BEFORE and ANY_LOG_PANIC_AFTER).
+//
+// NOTE: log_panic will always terminate the program and should be used only
+//       for non recoverable situations! For normal errors just use log_error
+//
 #define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
-// Normal logging functions
+// log_[level] provide normal printf style logging.
+//
+// The logs will be filtered according to the global log level. See any_log_level.
+//
+// You should invoke log_[level] with a format string and any number of
+// matched arguments. For example
+//
+//    log_error("This is an error");
+//    log_debug("The X is %d (padding %d)", X, 10);
+//
+// log_trace can be disabled completely (to avoid debug overhead) by defining
+// ANY_LOG_NO_TRACE. It is recommended to define this at a compiler level.
+//
 #define log_error(...) any_log_format(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #define log_warn(...)  any_log_format(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #define log_info(...)  any_log_format(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #define log_debug(...) any_log_format(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
-// Structured logging functions
+#ifdef ANY_LOG_NO_TRACE
+#define log_trace(...)
+#else
+#define log_trace(...) any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#endif
+
+// log_value_[level] provide structured logging.
+//
+// The logs will be filtered according to the global log level. See any_log_level.
+//
+// You should always pass a message string (printf style specifiers are ignored)
+// and some key-value pairs.
+//
+// The key are simply strings. It is advised to pass only literals for security.
+//
+// The value can be of type int, unsigned int, pointer (void *), double and
+// string (char *).
+//
+// The value type is specified by a type specifier at the start of the key
+// string and should be like so
+//
+//    key = (type_specifier ANY_LOG_VALUE_TYPE_SEP)? ...
+//
+// By default ANY_LOG_VALUE_TYPE_SEP is the character ':'.
+//
+// The possible type_specifiers are
+// d (or i): int
+// x (or u): unsigned int
+// p: void *
+// f: double
+// s: char *
+//
+// If no type specifier is given the function will assume the type given
+// by ANY_LOG_VALUE_DEFAULT_TYPE (by default string).
+//
+// For example
+//
+//    log_value_info("Created graphical context",
+//                   "d:width", width,
+//                   "d:height", height,
+//                   "p:window", window_handle,
+//                   "f:scale", scale_factor_dpi,
+//                   "appname", "nice app");
+//
+// In the implementation you can customize the format of every key-value pair
+// and of the message. This is useful if you want to adhere to a structured
+// logging format like JSON. For example
+//
+//    #define ANY_LOG_IMPLEMENT
+//    #define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
+//    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\"", \
+//    module, func, any_log_level_strings[level], message
+//
+//    #define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
+//    #define ANY_LOG_VALUE_HEX(key, value) "\"%s\": %u", key, value
+//    #define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
+//    #define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
+//    #define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
+//    #define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
+//    #include "any_log.h"
+//
+// As with log_trace, log_value_trace can be disabled completely by defining
+// ANY_LOG_NO_TRACE.
+//
 #define log_value_error(...) any_log_value(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #define log_value_warn(...)  any_log_value(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #define log_value_info(...)  any_log_value(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 
-// Optional trace log level
 #ifdef ANY_LOG_NO_TRACE
-#define log_trace(...)
 #define log_value_trace(...)
 #else
-#define log_trace(...) any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #define log_value_trace(...) any_log_value(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #endif
 
@@ -98,8 +179,22 @@ typedef enum {
 #define ANY_LOG_ATTRIBUTE(...)
 #endif
 
+// All log functions will ignore the message if the level is below the
+// threshold specified in any_log_level.
+//
+// To modify the log level you can assign a any_log_level_t to this global.
+//
+// By default it has value ANY_LOG_LEVEL_DEFAULT (see implementation).
+//
 extern any_log_level_t any_log_level;
 
+// An array containing the strings corresponding to the log levels.
+//
+// Can be modified in the implementation by defining the macros [level]_STRING.
+//
+// The functions any_log_level_to_string and any_log_level_from_string are
+// provided for easy conversion.
+//
 extern const char *any_log_level_strings[ANY_LOG_ALL];
 
 ANY_LOG_ATTRIBUTE(pure)
@@ -108,15 +203,21 @@ const char *any_log_level_to_string(any_log_level_t level);
 ANY_LOG_ATTRIBUTE(pure)
 any_log_level_t any_log_level_from_string(const char *string);
 
+// NOTE: You should never call the functions below directly!
+//       See the above explanations on how to use logging.
+
 ANY_LOG_ATTRIBUTE(format(printf, 4, 5))
+ANY_LOG_ATTRIBUTE(nonnull(4))
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...);
 
+ANY_LOG_ATTRIBUTE(nonnull(4))
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...);
 
 ANY_LOG_ATTRIBUTE(noreturn)
 ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
+ANY_LOG_ATTRIBUTE(nonnull(1, 4))
 void any_log_panic(const char *file, int line, const char *module,
                    const char *func, const char *format, ...);
 
@@ -129,32 +230,29 @@ void any_log_panic(const char *file, int line, const char *module,
 #include <stdlib.h>
 #include <string.h>
 
+// The default value for any_log_level
 #ifndef ANY_LOG_LEVEL_DEFAULT
 #define ANY_LOG_LEVEL_DEFAULT ANY_LOG_INFO
 #endif
 
 any_log_level_t any_log_level = ANY_LOG_LEVEL_DEFAULT;
 
+// Log level strings
 #ifndef ANY_LOG_PANIC_STRING
 #define ANY_LOG_PANIC_STRING "panic"
 #endif
-
 #ifndef ANY_LOG_ERROR_STRING
 #define ANY_LOG_ERROR_STRING "error"
 #endif
-
 #ifndef ANY_LOG_WARN_STRING
 #define ANY_LOG_WARN_STRING "warn"
 #endif
-
 #ifndef ANY_LOG_INFO_STRING
 #define ANY_LOG_INFO_STRING "info"
 #endif
-
 #ifndef ANY_LOG_DEBUG_STRING
 #define ANY_LOG_DEBUG_STRING "debug"
 #endif
-
 #ifndef ANY_LOG_TRACE_STRING
 #define ANY_LOG_TRACE_STRING "trace"
 #endif
@@ -184,10 +282,12 @@ any_log_level_t any_log_level_from_string(const char *string)
     return ANY_LOG_ALL;
 }
 
+// Format for any_log_format (used at the start)
 #ifndef ANY_LOG_FORMAT_BEFORE
 #define ANY_LOG_FORMAT_BEFORE(level, module, func) "[%s %s] %s: ", module, func, any_log_level_strings[level]
 #endif
 
+// Format for any_log_format (used at the end)
 #ifndef ANY_LOG_FORMAT_AFTER
 #define ANY_LOG_FORMAT_AFTER(level, module, func) "\n"
 #endif
@@ -213,58 +313,59 @@ void any_log_format(any_log_level_t level, const char *module,
     (void)func;
 }
 
-// NOTE: Must be a character
-#ifndef ANY_LOG_VALUE_TYPE_SEP
-#define ANY_LOG_VALUE_TYPE_SEP ':'
-#endif
-
+// Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
 #define ANY_LOG_VALUE_BEFORE(level, module, func, message) "[%s %s] %s: %s [", module, func, any_log_level_strings[level], message
 #endif
 
-#ifndef ANY_LOG_VALUE_INT
-#define ANY_LOG_VALUE_INT(key, value) "%s=%d", key, value
-#endif
-
-#ifndef ANY_LOG_VALUE_HEX
-#define ANY_LOG_VALUE_HEX(key, value) "%s=%#x", key, value
-#endif
-
-#ifndef ANY_LOG_VALUE_PTR
-#define ANY_LOG_VALUE_PTR(key, value) "%s=%p", key, value
-#endif
-
-#ifndef ANY_LOG_VALUE_DOUBLE
-#define ANY_LOG_VALUE_DOUBLE(key, value) "%s=%lf", key, value
-#endif
-
-#ifndef ANY_LOG_VALUE_STRING
-#define ANY_LOG_VALUE_STRING(key, value) "%s=\"%s\"", key, value
-#endif
-
-#ifndef ANY_LOG_VALUE_DEFAULT
-#define ANY_LOG_VALUE_DEFAULT ANY_LOG_VALUE_STRING
-#define ANY_LOG_VALUE_DEFAULT_TYPE char *
-#endif
-
-#ifndef ANY_LOG_VALUE_PAIR_SEP
-#define ANY_LOG_VALUE_PAIR_SEP ", "
-#endif
-
+// Format for any_log_value (used at the end)
 #ifndef ANY_LOG_VALUE_AFTER
 #define ANY_LOG_VALUE_AFTER(level, module, func, message) "]\n"
 #endif
 
-// Possible value type specifier
+// This is used in the parsing of the type specifier from the key
 //
-// d (or i): int
-// x (or u): unsigned int
-// p: void *
-// f: double
-// s: string
-//
-// NOTE: If no type specifier is given the function will assume type string
-//
+// NOTE: It must be a character
+#ifndef ANY_LOG_VALUE_TYPE_SEP
+#define ANY_LOG_VALUE_TYPE_SEP ':'
+#endif
+
+// Format for pairs with an int value
+#ifndef ANY_LOG_VALUE_INT
+#define ANY_LOG_VALUE_INT(key, value) "%s=%d", key, value
+#endif
+
+// Format for pairs with an unsinged int value (hex by default)
+#ifndef ANY_LOG_VALUE_HEX
+#define ANY_LOG_VALUE_HEX(key, value) "%s=%#x", key, value
+#endif
+
+// Format for pairs with a pointer value
+#ifndef ANY_LOG_VALUE_PTR
+#define ANY_LOG_VALUE_PTR(key, value) "%s=%p", key, value
+#endif
+
+// Format for pairs with a double value
+#ifndef ANY_LOG_VALUE_DOUBLE
+#define ANY_LOG_VALUE_DOUBLE(key, value) "%s=%lf", key, value
+#endif
+
+// Format for pairs with a string value
+#ifndef ANY_LOG_VALUE_STRING
+#define ANY_LOG_VALUE_STRING(key, value) "%s=\"%s\"", key, value
+#endif
+
+// The default is to use string
+#ifndef ANY_LOG_VALUE_DEFAULT
+#define ANY_LOG_VALUE_DEFAULT(key, value) ANY_LOG_VALUE_STRING(key, value)
+#define ANY_LOG_VALUE_DEFAULT_TYPE char *
+#endif
+
+// This is used as a separator between different pairs
+#ifndef ANY_LOG_VALUE_PAIR_SEP
+#define ANY_LOG_VALUE_PAIR_SEP ", "
+#endif
+
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...)
 {
@@ -339,10 +440,12 @@ tdefault:
 #define ANY_LOG_EXIT(file, line, module, func) abort()
 #endif
 
+// Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_BEFORE
 #define ANY_LOG_PANIC_BEFORE(file, line, module, func) "[%s %s] %s: ", module, func, any_log_level_strings[ANY_LOG_PANIC]
 #endif
 
+// Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_AFTER
 #define ANY_LOG_PANIC_AFTER(file, line, module, func) "\npanic was invoked from %s:%d (%s)\n", file, line, module
 #endif

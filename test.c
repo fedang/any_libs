@@ -1,5 +1,16 @@
 #define ANY_LOG_IMPLEMENT
 #define ANY_LOG_MODULE "test"
+
+#define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
+    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\"", \
+     module, func, any_log_level_strings[level], message
+
+#define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
+#define ANY_LOG_VALUE_HEX(key, value) "\"%s\": %u", key, value
+#define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
+#define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
+#define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
+#define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
 #include "any_log.h"
 
 int main()
@@ -42,6 +53,13 @@ int main()
             "d:this is ", 10,
             "f:dbl", 20.3333,
             "p:a", NULL);
+
+    log_value_info("Created graphical context",
+                   "d:width", 100,
+                   "d:height", 200,
+                   "p:window", NULL,
+                   "f:scale", 1.23,
+                   "appname", "nice app");
 
     // Test any_log_format
 
