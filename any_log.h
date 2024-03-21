@@ -90,13 +90,20 @@ typedef enum {
 //    log_error("This is an error");
 //    log_debug("The X is %d (padding %d)", X, 10);
 //
-// log_trace can be disabled completely (to avoid debug overhead) by defining
-// ANY_LOG_NO_TRACE. It is recommended to define this at a compiler level.
+// log_trace and log_debug can be disabled completely (to avoid their overhead
+// in release/optimized builds) by defining ANY_LOG_NO_TRACE and ANY_LOG_NO_DEBUG
+// respectively. As this will work only if they are defined before every header
+// include, it is recommended to define this from the compiler.
 //
 #define log_error(...) any_log_format(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #define log_warn(...)  any_log_format(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #define log_info(...)  any_log_format(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+
+#ifdef ANY_LOG_NO_DEBUG
+#define log_debug(...)
+#else
 #define log_debug(...) any_log_format(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#endif
 
 #ifdef ANY_LOG_NO_TRACE
 #define log_trace(...)
@@ -147,8 +154,8 @@ typedef enum {
 // logging format like JSON. For example
 //
 //    #define ANY_LOG_IMPLEMENT
-//    #define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
-//    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\"", \
+//    #define ANY_LOG_VALUE_BEFORE(level, module, func, message)
+//    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\"",
 //    module, func, any_log_level_strings[level], message
 //
 //    #define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
@@ -159,13 +166,19 @@ typedef enum {
 //    #define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
 //    #include "any_log.h"
 //
-// As with log_trace, log_value_trace can be disabled completely by defining
-// ANY_LOG_NO_TRACE.
+// As with log_trace and log_debug, log_value_trace and log_value_debug can be
+// disabled by defining ANY_LOG_NO_TRACE and ANY_LOG_NO_DEBUG respectively.
 //
 #define log_value_error(...) any_log_value(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #define log_value_warn(...)  any_log_value(ANY_LOG_WARN, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #define log_value_info(...)  any_log_value(ANY_LOG_INFO, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+
+#ifdef ANY_LOG_NO_DEBUG
+#define log_value_debug(...)
+#else
+#define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#endif
 
 #ifdef ANY_LOG_NO_TRACE
 #define log_value_trace(...)
