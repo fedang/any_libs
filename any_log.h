@@ -207,7 +207,7 @@ extern any_log_level_t any_log_level;
 
 // An array containing the strings corresponding to the log levels.
 //
-// Can be modified in the implementation by defining the macros [level]_STRING.
+// Can be modified in the implementation by defining the macros ANY_LOG_[level]_STRING.
 //
 // The functions any_log_level_to_string and any_log_level_from_string are
 // provided for easy conversion.
@@ -220,11 +220,34 @@ const char *any_log_level_to_string(any_log_level_t level);
 ANY_LOG_ATTRIBUTE(pure)
 any_log_level_t any_log_level_from_string(const char *string);
 
-// Colors
+// The default format macros for all logging function uses the global
+// any_log_color to get the color sequence to use when printing the logs.
+//
+// By default this global points to any_log_colors_default, but you can
+// set it to any_log_colors_disabled or to a custom array of your choice.
+//
+// The array you give should have length ANY_LOG_ALL + 3 and this organization
+//
+// from ANY_LOG_PANIC to ANY_LOG_TRACE: the colors indexed by log levels
+// ANY_LOG_ALL: the color reset sequence
+// ANY_LOG_ALL + 1: the color for the module
+// ANY_LOG_ALL + 2: the color for the function
+//
+// NOTE: If you changed the default format in the implementation
+//       (by redefining ANY_LOG_FORMAT_*, ANY_LOG_VALUE_* and ANY_LOG_PANIC_*),
+//       you can safely ignore these variables and use whatever method you
+//       prefer to get the colors.
+//
 extern const char **any_log_colors;
 
+// This array contains the default colors.
+//
+// See ANY_LOG_[level]_COLOR, ANY_LOG_RESET_COLOR, ANY_LOG_MODULE_COLOR and
+// ANY_LOG_FUNC_COLOR in the implementation.
+//
 extern const char *any_log_colors_default[ANY_LOG_ALL + 3];
 
+// This array contains empty strings.
 extern const char *any_log_colors_disabled[ANY_LOG_ALL + 3];
 
 // NOTE: You should never call the functions below directly!
@@ -310,6 +333,10 @@ any_log_level_t any_log_level_from_string(const char *string)
     return ANY_LOG_ALL;
 }
 
+// These colors related variables are provided just to provide a uniform
+// interface for setting the colors. If you decide to change the default
+// log format macros, feel free to ignore all this variables.
+//
 const char **any_log_colors = any_log_colors_default;
 
 // Log colors indexed by log level, with the addition of special colors
@@ -394,8 +421,8 @@ void any_log_format(any_log_level_t level, const char *module,
 
 // Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
-#define ANY_LOG_VALUE_BEFORE(level, module, func) \
-    "[%s%s%s %s%s%s] %s%s%s: %s", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
+#define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
+    "[%s%s%s %s%s%s] %s%s%s: %s [", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
     func, any_log_colors[ANY_LOG_ALL], any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL], message
 #endif
 
