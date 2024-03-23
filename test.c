@@ -1,12 +1,16 @@
+#include <stdbool.h>
+
 #define ANY_LOG_IMPLEMENT
 #define ANY_LOG_MODULE "test"
 
 #define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
-    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\"", \
+    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ", \
      module, func, any_log_level_strings[level], message
 
+#define ANY_LOG_VALUE_BOOL(key, value) "\"%s\": %s", key, (value ? "true" : "false")
 #define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
 #define ANY_LOG_VALUE_HEX(key, value) "\"%s\": %u", key, value
+#define ANY_LOG_VALUE_LONG(key, value) "\"%s\": %ld", key, value
 #define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
 #define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
 #define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
@@ -60,6 +64,7 @@ int main()
                    "d:height", 200,
                    "p:window", NULL,
                    "f:scale", 1.23,
+                   "b:hidden", true,
                    "appname", "nice app");
 
     // Test any_log_format

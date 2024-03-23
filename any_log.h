@@ -132,12 +132,15 @@ typedef enum {
 //
 // By default ANY_LOG_VALUE_TYPE_SEP is the character ':'.
 //
-// The possible type_specifiers are
-// d (or i): int
-// x (or u): unsigned int
-// p: void *
-// f: double
-// s: char *
+// type_specifier |           type         | default format
+//                |                        |
+//        b       | bool (promoted to int) | "%s", b ? true : false
+//      d, i      | int                    | "%d"
+//      x, u      | unsigned int           | "%#x"
+//       l        | long int               | "%ld"
+//       p        | void *                 | "%p"
+//       f        | double                 | "%lf"
+//       s        | char * (0-terminated)  | "%s"
 //
 // If no type specifier is given the function will assume the type given
 // by ANY_LOG_VALUE_DEFAULT_TYPE (by default string).
@@ -149,6 +152,7 @@ typedef enum {
 //                   "d:height", height,
 //                   "p:window", window_handle,
 //                   "f:scale", scale_factor_dpi,
+//                   "b:hidden", visibility == HIDDEN,
 //                   "appname", "nice app");
 //
 // In the implementation you can customize the format of every key-value pair
@@ -157,11 +161,13 @@ typedef enum {
 //
 //    #define ANY_LOG_IMPLEMENT
 //    #define ANY_LOG_VALUE_BEFORE(level, module, func, message)
-//    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\"",
+//    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ",
 //    module, func, any_log_level_strings[level], message
 //
+//    #define ANY_LOG_VALUE_BOOL(key, value) "\"%s\": %s", key, (value ? "true" : "false")
 //    #define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
 //    #define ANY_LOG_VALUE_HEX(key, value) "\"%s\": %u", key, value
+//    #define ANY_LOG_VALUE_LONG(key, value) "\"%s\": %ld", key, value
 //    #define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
 //    #define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
 //    #define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
@@ -449,6 +455,13 @@ void any_log_format(any_log_level_t level, const char *module,
     (void)func;
 }
 
+// This is used in the parsing of the type specifier from the key
+//
+// NOTE: It must be a character
+#ifndef ANY_LOG_VALUE_TYPE_SEP
+#define ANY_LOG_VALUE_TYPE_SEP ':'
+#endif
+
 // Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
 #define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
@@ -461,11 +474,11 @@ void any_log_format(any_log_level_t level, const char *module,
 #define ANY_LOG_VALUE_AFTER(level, module, func, message) "]\n"
 #endif
 
-// This is used in the parsing of the type specifier from the key
+// Format for pairs with a bool value
 //
-// NOTE: It must be a character
-#ifndef ANY_LOG_VALUE_TYPE_SEP
-#define ANY_LOG_VALUE_TYPE_SEP ':'
+// NOTE: C automatically promotes boolean types to int
+#ifndef ANY_LOG_VALUE_BOOL
+#define ANY_LOG_VALUE_BOOL(key, value) "%s=%s", key, (value ? "true" : "false")
 #endif
 
 // Format for pairs with an int value
@@ -476,6 +489,11 @@ void any_log_format(any_log_level_t level, const char *module,
 // Format for pairs with an unsinged int value (hex by default)
 #ifndef ANY_LOG_VALUE_HEX
 #define ANY_LOG_VALUE_HEX(key, value) "%s=%#x", key, value
+#endif
+
+// Format for pairs with a long int value
+#ifndef ANY_LOG_VALUE_LONG
+#define ANY_LOG_VALUE_LONG(key, value) "%s=%ld", key, value
 #endif
 
 // Format for pairs with a pointer value
@@ -522,6 +540,10 @@ void any_log_value(any_log_level_t level, const char *module,
         if (key[0] != '\0' && key[1] == ANY_LOG_VALUE_TYPE_SEP) {
             key += 2;
             switch (key[-2]) {
+                case 'b':
+                    fprintf(any_log_stream, ANY_LOG_VALUE_BOOL(key, va_arg(args, int)));
+                    break;
+
                 case 'd':
                 case 'i':
                     fprintf(any_log_stream, ANY_LOG_VALUE_INT(key, va_arg(args, int)));
@@ -530,6 +552,10 @@ void any_log_value(any_log_level_t level, const char *module,
                 case 'x':
                 case 'u':
                     fprintf(any_log_stream, ANY_LOG_VALUE_HEX(key, va_arg(args, unsigned int)));
+                    break;
+
+                case 'l':
+                    fprintf(any_log_stream, ANY_LOG_VALUE_LONG(key, va_arg(args, long int)));
                     break;
 
                 case 'p':
