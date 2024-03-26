@@ -1,6 +1,6 @@
 // any_log
 //
-// A single header library that provides a simple and somewhat opinionated
+// A single-file library that provides a simple and somewhat opinionated
 // interface for logging and structured logging.
 //
 // To use this library you should choose a suitable file to put the
