@@ -113,7 +113,21 @@ static char *any_ini_copy(const char *start, size_t length)
 {
     char *string = ANY_INI_MALLOC(length + 1);
     if (string) {
+#ifdef ANY_INI_NO_MULTILINE
         memcpy(string, start, length);
+#else
+        size_t i, size = length;
+        for (i = 0, length = 0; i < size; i++) {
+            if (start[i] == '\\') {
+                if (i + 1 < size && start[i + 1] == '\n')
+                    i++;
+                else if (i + 2 < size && start[i + 1] == '\r' && start[i + 2] == '\\')
+                    i += 2;
+                continue;
+            }
+            string[length++] = start[i];
+        }
+#endif
         string[length] = '\0';
     }
     return string;
@@ -152,6 +166,11 @@ static bool any_ini_skip_pair(const char *source, size_t cursor, bool key)
 {
     switch (source[cursor]) {
         case '\n':
+#ifndef ANY_INI_NO_MULTILINE
+            if ((cursor > 2 && source[cursor - 1] == '\r' && source[cursor - 2] == '\\') ||
+                (cursor > 1 && source[cursor - 1] == '\\'))
+                return true;
+#endif
             return false;
 
 #ifndef ANY_INI_NO_INLINE_COMMENT
@@ -159,7 +178,7 @@ static bool any_ini_skip_pair(const char *source, size_t cursor, bool key)
 #ifdef ANY_INI_DELIM_COMMENT2
         case ANY_INI_DELIM_COMMENT2:
 #endif
-            if (isspace(source[cursor - 1]))
+            if (cursor != 0 && isspace(source[cursor - 1]))
                 return false;
             // fallthrough
 #endif

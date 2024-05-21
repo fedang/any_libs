@@ -20,7 +20,10 @@ void test_ini()
         /*13*/ "try = catch 123 bool\n"
         /*14*/ " k e y = value pair!   ; comment\n"
         /*15*/ " su;s = [x] \n"
-        /*16*/ " sus \n";
+        /*16*/ " sus \n"
+        /*17*/ "test = multi \\\n"
+        /*18*/ " line \\\n"
+        /*19*/ " works ; boh \n";
 
     any_ini_t ini;
     any_ini_init(&ini, src, strlen(src));
