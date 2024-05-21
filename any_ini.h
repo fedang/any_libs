@@ -83,6 +83,9 @@ char *any_ini_stream_next_value(any_ini_stream_t *ini);
 #ifndef ANY_INI_MALLOC
 #include <stdlib.h>
 #define ANY_INI_MALLOC malloc
+
+// NOTE: ANY_INI_REALLOC is only used by the any_ini_stream_* functions
+//       Feel free to ignore this if you defined ANY_INI_NO_STREAM
 #define ANY_INI_REALLOC realloc
 #endif
 
@@ -109,25 +112,34 @@ static size_t any_ini_trim(const char *source, size_t start, size_t end)
     return end - start;
 }
 
-static char *any_ini_copy(const char *start, size_t length)
+// If ANY_INI_NO_MULTILINE is defined it copies verbatim the input, otherwise it will
+// remove the sequences '\\\r\n' and '\\\n' while copying
+static size_t any_ini_copy(char *dest, const char *source, size_t length)
+{
+#ifdef ANY_INI_NO_MULTILINE
+    memcpy(dest, source, length);
+    return length;
+#else
+    size_t i = 0, j = 0;
+    while (i < length) {
+        if (source[i] == '\\') {
+            if (i + 1 < length && source[i + 1] == '\n')
+                i += 2;
+            else if (i + 2 < length && source[i + 1] == '\r' && source[i + 2] == '\\')
+                i += 3;
+            continue;
+        }
+        dest[j++] = source[i++];
+    }
+    return j;
+#endif
+}
+
+static char *any_ini_slice(const char *start, size_t length)
 {
     char *string = ANY_INI_MALLOC(length + 1);
     if (string) {
-#ifdef ANY_INI_NO_MULTILINE
-        memcpy(string, start, length);
-#else
-        size_t i, size = length;
-        for (i = 0, length = 0; i < size; i++) {
-            if (start[i] == '\\') {
-                if (i + 1 < size && start[i + 1] == '\n')
-                    i++;
-                else if (i + 2 < size && start[i + 1] == '\r' && start[i + 2] == '\\')
-                    i += 2;
-                continue;
-            }
-            string[length++] = start[i];
-        }
-#endif
+        length = any_ini_copy(string, start, length);
         string[length] = '\0';
     }
     return string;
@@ -220,7 +232,7 @@ char *any_ini_next_section(any_ini_t *ini)
         end--;
 
     size_t length = any_ini_trim(ini->source, start, end);
-    return any_ini_copy(ini->source + start, length);
+    return any_ini_slice(ini->source + start, length);
 }
 
 char *any_ini_next_key(any_ini_t *ini)
@@ -235,7 +247,7 @@ char *any_ini_next_key(any_ini_t *ini)
         ini->cursor++;
 
     size_t length = any_ini_trim(ini->source, start, ini->cursor);
-    return any_ini_copy(ini->source + start, length);
+    return any_ini_slice(ini->source + start, length);
 }
 
 char *any_ini_next_value(any_ini_t *ini)
@@ -251,7 +263,7 @@ char *any_ini_next_value(any_ini_t *ini)
         ini->cursor++;
 
     size_t length = any_ini_trim(ini->source, start, ini->cursor);
-    return any_ini_copy(ini->source + start, length);
+    return any_ini_slice(ini->source + start, length);
 }
 
 #ifndef ANY_INI_NO_STREAM
@@ -317,21 +329,22 @@ static void any_ini_stream_skip(any_ini_stream_t *ini, bool comment)
     }
 }
 
+
 static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
 {
     char *tmp, *value = NULL;
     size_t size = 0;
-    char prev = '\0';
+    char prev[2] = { 0 };
 
     bool done = false;
     while (!ini->eof && !done) {
         switch (ini->buffer[ini->cursor]) {
+            // Copy current buffer and refill
             case '\0':
                 tmp = ANY_INI_REALLOC(value, size + ini->cursor - start);
                 if (!tmp) return value;
 
-                memcpy(tmp + size, ini->buffer + start, ini->cursor - start);
-                size += ini->cursor - start;
+                size += any_ini_copy(tmp + size, ini->buffer + start, ini->cursor - start);
                 value = tmp;
 
                 any_ini_stream_read(ini);
@@ -340,6 +353,12 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
 
             // Stop at line boundaries
             case '\n':
+#ifndef ANY_INI_NO_MULTILINE
+                if ((prev[0] == '\r' && prev[1] == '\\') || prev[0] == '\\') {
+                    ini->cursor++;
+                    continue;
+                }
+#endif
                 done = true;
                 break;
 
@@ -348,7 +367,7 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
 #ifdef ANY_INI_DELIM_COMMENT2
             case ANY_INI_DELIM_COMMENT2:
 #endif
-                if (isspace(prev)) {
+                if (isspace(prev[0])) {
                     done = true;
                     break;
                 }
@@ -360,7 +379,8 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
                     break;
                 }
 
-                prev = ini->buffer[ini->cursor];
+                prev[1] = prev[0];
+                prev[0] = ini->buffer[ini->cursor];
                 ini->cursor++;
                 break;
 
@@ -370,8 +390,8 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
     tmp = ANY_INI_REALLOC(value, size + ini->cursor - start);
     if (!tmp) return value;
 
-    memcpy(tmp + size, ini->buffer + start, ini->cursor - start);
-    size = any_ini_trim(tmp, 0, size + ini->cursor - start);
+    size += any_ini_copy(tmp + size, ini->buffer + start, ini->cursor - start);
+    size = any_ini_trim(tmp, 0, size);
     tmp[size] = '\0';
     return tmp;
 }
