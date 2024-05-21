@@ -20,11 +20,6 @@
 #ifndef ANY_INI_INCLUDE
 #define ANY_INI_INCLUDE
 
-#ifndef ANY_INI_MALLOC
-#include <stdlib.h>
-#define ANY_INI_MALLOC malloc
-#endif
-
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -48,7 +43,7 @@ char *any_ini_next_value(any_ini_t *ini);
 #ifndef ANY_INI_NO_STREAM
 
 #ifndef ANY_INI_BUFFER_SIZE
-#define ANY_INI_BUFFER_SIZE 4096
+#define ANY_INI_BUFFER_SIZE 512
 #endif
 
 typedef char *(*any_ini_stream_read_t)(char *string, int size, void *stream);
@@ -84,6 +79,13 @@ char *any_ini_stream_next_value(any_ini_stream_t *ini);
 #include <stdbool.h>
 #include <ctype.h>
 
+
+#ifndef ANY_INI_MALLOC
+#include <stdlib.h>
+#define ANY_INI_MALLOC malloc
+#define ANY_INI_REALLOC realloc
+#endif
+
 #ifndef ANY_INI_DELIM_COMMENT
 #define ANY_INI_DELIM_COMMENT ';'
 #endif
@@ -104,7 +106,6 @@ static size_t any_ini_trim(const char *source, size_t start, size_t end)
 {
     while (isspace(source[end - 1]))
         end--;
-
     return end - start;
 }
 
@@ -242,7 +243,25 @@ static void any_ini_stream_read(any_ini_stream_t *ini)
     ini->cursor = 0;
 }
 
-static void any_ini_stream_skip(any_ini_stream_t *ini)
+static void any_ini_stream_skip_line(any_ini_stream_t *ini)
+{
+    while (true) {
+        switch (ini->buffer[ini->cursor]) {
+            case '\n':
+                return;
+
+            case '\0':
+                any_ini_stream_read(ini);
+                break;
+
+            default:
+                ini->cursor++;
+                break;
+        }
+    }
+}
+
+static void any_ini_stream_skip(any_ini_stream_t *ini, bool comment)
 {
     while (!ini->eof) {
         switch (ini->buffer[ini->cursor]) {
@@ -252,12 +271,22 @@ static void any_ini_stream_skip(any_ini_stream_t *ini)
             case '\r':
                 break;
 
-            // Discard the current line
-            case '\n':
+            case '\0':
+                any_ini_stream_read(ini);
+                continue;
+
             case ANY_INI_DELIM_COMMENT:
 #ifdef ANY_INI_DELIM_COMMENT2
             case ANY_INI_DELIM_COMMENT2:
 #endif
+                if (!comment)
+                    return;
+
+                any_ini_stream_skip_line(ini);
+                // fallthrough
+
+            // Discard the current line
+            case '\n':
                 ini->line++;
                 any_ini_stream_read(ini);
                 continue;
@@ -269,13 +298,74 @@ static void any_ini_stream_skip(any_ini_stream_t *ini)
     }
 }
 
+static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
+{
+    char *tmp, *value = NULL;
+    size_t size = 0;
+    char prev = '\0';
+
+    bool done = false;
+    while (!ini->eof && !done) {
+        switch (ini->buffer[ini->cursor]) {
+            case '\0':
+                tmp = ANY_INI_REALLOC(value, size + ini->cursor - start);
+                if (!tmp) return value;
+
+                memcpy(tmp + size, ini->buffer + start, ini->cursor - start);
+                size += ini->cursor - start;
+                value = tmp;
+
+                any_ini_stream_read(ini);
+                start = 0;
+                break;
+
+            // Stop at line boundaries
+            case '\n':
+                done = true;
+                break;
+
+#ifndef ANY_INI_NO_INLINE_COMMENT
+            case ANY_INI_DELIM_COMMENT:
+#ifdef ANY_INI_DELIM_COMMENT2
+            case ANY_INI_DELIM_COMMENT2:
+#endif
+                if (isspace(prev)) {
+                    done = true;
+                    break;
+                }
+                // fallthrough
+#endif
+            default:
+                if (ini->buffer[ini->cursor] == c) {
+                    done = true;
+                    break;
+                }
+
+                prev = ini->buffer[ini->cursor];
+                ini->cursor++;
+                break;
+
+        }
+    }
+
+    tmp = ANY_INI_REALLOC(value, size + ini->cursor - start);
+    if (!tmp) return value;
+
+    memcpy(tmp + size, ini->buffer + start, ini->cursor - start);
+    size = any_ini_trim(tmp, 0, size + ini->cursor - start);
+    tmp[size] = '\0';
+    return tmp;
+}
+
 void any_ini_stream_init(any_ini_stream_t *ini, any_ini_stream_read_t read, void *stream)
 {
-    ini->cursor = 0;
     ini->line = 1;
     ini->read = read;
     ini->stream = stream;
-    ini->eof = read(ini->buffer, ANY_INI_BUFFER_SIZE, stream) == NULL;
+
+    // Init buffer
+    memset(ini->buffer, 0, ANY_INI_BUFFER_SIZE);
+    any_ini_stream_read(ini);
 }
 
 void any_ini_file_init(any_ini_stream_t *ini, FILE *file)
@@ -290,38 +380,29 @@ bool any_ini_stream_eof(any_ini_stream_t *ini)
 
 char *any_ini_stream_next_section(any_ini_stream_t *ini)
 {
-    any_ini_stream_skip(ini);
+    any_ini_stream_skip(ini, true);
 
     if (ini->eof || ini->buffer[ini->cursor] != ANY_INI_SECTION_START)
         return NULL;
 
-    size_t start = ++ini->cursor;
-    while (isspace(ini->buffer[ini->cursor])) ++start;
+    // Skip padding
+    ini->cursor++;
+    any_ini_stream_skip(ini, false);
 
-    while (ini->buffer[ini->cursor] != '\n') ini->cursor++;
-
-    // NOTE: Does not handle the case where ANY_INI_SECTION_END is not found
-    size_t end = ini->cursor;
-    while (end > start && ini->buffer[end] != ANY_INI_SECTION_END)
-        end--;
-
-    size_t length = any_ini_trim(ini->buffer, start, end);
-    return any_ini_copy(ini->buffer + start, length);
+    char *section = any_ini_stream_until(ini, ini->cursor, ANY_INI_SECTION_END);
+    any_ini_stream_skip_line(ini);
+    return section;
 }
 
 char *any_ini_stream_next_key(any_ini_stream_t *ini)
 {
-    any_ini_stream_skip(ini);
+    any_ini_stream_skip(ini, true);
 
-    if (ini->eof || ini->buffer[ini->cursor] == ANY_INI_SECTION_START)
+    if (ini->eof || ini->buffer[ini->cursor] == ANY_INI_SECTION_START
+                 || ini->buffer[ini->cursor] == ANY_INI_DELIM_PAIR)
         return NULL;
 
-    size_t start = ini->cursor;
-    while (any_ini_skip_pair(ini->buffer, ini->cursor, true))
-        ini->cursor++;
-
-    size_t length = any_ini_trim(ini->buffer, start, ini->cursor);
-    return any_ini_copy(ini->buffer + start, length);
+    return any_ini_stream_until(ini, ini->cursor, ANY_INI_DELIM_PAIR);
 }
 
 char *any_ini_stream_next_value(any_ini_stream_t *ini)
@@ -329,15 +410,10 @@ char *any_ini_stream_next_value(any_ini_stream_t *ini)
     if (ini->eof || ini->buffer[ini->cursor] != ANY_INI_DELIM_PAIR)
         return NULL;
 
-    ++ini->cursor;
-    any_ini_stream_skip(ini);
-
-    size_t start = ini->cursor;
-    while (any_ini_skip_pair(ini->buffer, ini->cursor, false))
-        ini->cursor++;
-
-    size_t length = any_ini_trim(ini->buffer, start, ini->cursor);
-    return any_ini_copy(ini->buffer + start, length);
+    // Skip padding
+    ini->cursor++;
+    any_ini_stream_skip(ini, false);
+    return any_ini_stream_until(ini, ini->cursor, '\n');
 }
 
 #endif
