@@ -1,3 +1,62 @@
+// any_hash
+//
+// A single-file library that provides a simple implementation of the
+// xxHash xxh32 and xxh64 hashing algorithms.
+//
+// To use this library you should choose a suitable file to put the
+// implementation and define ANY_HASH_IMPLEMENT. For example
+//
+//    #define ANY_HASH_IMPLEMENT
+//    #include "any_hash.h"
+//
+// Additionally, you can customize the library behavior by defining certain
+// macros in the file where you put the implementation. You can see which are
+// supported by reading the code guarded by ANY_HASH_IMPLEMENT.
+//
+// This library is licensed under the terms of the MIT license.
+// A copy of the license is included at the end of this file.
+//
+
+// Rationale
+//
+// Why use this library when there is the official xxHash library?
+//
+// The answer is simplicity: the xxHash library is a single header with
+// more than 7000 lines of code. This becomes a burden both for shipping
+// and compiling the header file in a (especially small) project.
+//
+// Meanwhile this any_hash is a few hundreds lines at most.
+// This comes at a cost thought: less architecture specific optimizations,
+// less hashing algorithms, slightly less performance overall.
+//
+// Note however that the library is still very fast and the perfomance
+// difference will not be noticeable in small projects.
+//
+// How does this library perform?
+//
+// As said before, it does far less optimizations compared to xxHash.
+// It really makes a difference if you are using an architecture with
+// modern instruction sets like AVX2.
+//
+// However any_hash is still quite fast and performant compared to most
+// handcoded hashing solutions and comes in a convenient small package.
+//
+
+// Perfomance comparison
+//
+//   hash function  | large inputs |   small inputs
+//                  |              |
+//    xxHash XXH3   |  17.07 GB/s  |  129813995 hash/s
+//    xxHash XXH32  |   6.02 GB/s  |  87749462 hash/s
+//    xxHash XXH64  |  11.72 GB/s  |  81670020 hash/s
+//    xxHash XXH128 |  16.71 GB/s  | 112659406 hash/s
+//     any_xxh32    |   6.10 GB/s  |  83403749 hash/s
+//     any_xxh64    |  11.89 GB/s  |  72925776 hash/s
+//
+// The speed was measured with the 'benchHash' program provided by
+// the xxHash library and without AVX2 enabled.
+//
+
 #ifndef ANY_HASH_INCLUDE
 #define ANY_HASH_INCLUDE
 
@@ -49,7 +108,7 @@ any_hash64_t any_hash_xxh64(const uint8_t *data, size_t length, any_hash64_t see
 #ifndef ANY_HASH_RUNTIME_ENDIAN
 #ifndef ANY_HASH_LITTLE_ENDIAN
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ || \
-	defined(__BIG_ENDIAN__) || defined(__BIG_ENDIAN) || defined(_BIG_ENDIAN)
+    defined(__BIG_ENDIAN__) || defined(__BIG_ENDIAN) || defined(_BIG_ENDIAN)
 #define ANY_HASH_LITTLE_ENDIAN 0
 #else
 #define ANY_HASH_LITTLE_ENDIAN 1
@@ -60,11 +119,11 @@ any_hash64_t any_hash_xxh64(const uint8_t *data, size_t length, any_hash64_t see
 
 static inline int any_hash_little_endian(void)
 {
-	const union {
-		uint32_t uint;
-		char bytes[4];
-	} t = { 1 };
-	return t.bytes[0];
+    const union {
+        uint32_t uint;
+        char bytes[4];
+    } t = { 1 };
+    return t.bytes[0];
 }
 #endif
 
@@ -364,3 +423,26 @@ any_hash64_t any_hash_xxh64(const uint8_t *data, size_t length, any_hash64_t see
 #endif
 
 #endif
+
+// MIT License
+//
+// Copyright (c) 2024 Federico Angelilli
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
