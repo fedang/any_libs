@@ -23,7 +23,11 @@ void test_ini()
         /*16*/ " sus \n"
         /*17*/ "test = multi \\\n"
         /*18*/ " line \\\n"
-        /*19*/ " works ; boh \n";
+        /*19*/ " works ; boh \n"
+        /*20*/ "[ section \n"
+        /*21*/ " test = boh\n"
+        /*22*/ " [ sus [[ ciao [] si ]\n"
+        /*23*/ " works = boh \n";
 
     any_ini_t ini;
     any_ini_init(&ini, src, strlen(src));
