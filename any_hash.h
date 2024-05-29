@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifndef ANY_HASH_NO_XXH32
 
@@ -46,21 +47,26 @@ any_hash64_t any_hash_xxh64(const uint8_t *data, size_t length, any_hash64_t see
 #endif
 
 #ifndef ANY_HASH_RUNTIME_ENDIAN
-#ifndef ANY_HASH_LE
+#ifndef ANY_HASH_LITTLE_ENDIAN
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ || \
 	defined(__BIG_ENDIAN__) || defined(__BIG_ENDIAN) || defined(_BIG_ENDIAN)
-#define ANY_HASH_LE 0
+#define ANY_HASH_LITTLE_ENDIAN 0
 #else
-#define ANY_HASH_LE 1
+#define ANY_HASH_LITTLE_ENDIAN 1
 #endif
 #endif
-
-static bool any_hash_little_endian = ANY_HASH_LE;
 #else
-static int any_hash_test_endian = 1;
-static bool any_hash_little_endian = *((char *)&any_hash_test_endian);
-#endif
+#define ANY_HASH_LITTLE_ENDIAN any_hash_little_endian()
 
+static inline int any_hash_little_endian(void)
+{
+	const union {
+		uint32_t uint;
+		char bytes[4];
+	} t = { 1 };
+	return t.bytes[0];
+}
+#endif
 
 #ifndef ANY_HASH_NO_XXH32
 
@@ -118,14 +124,14 @@ static inline any_hash32_t any_hash_rotl32(any_hash32_t hash, uint32_t bits)
 static inline any_hash32_t any_hash_fetch32(const uint8_t *data, int_fast32_t align)
 {
     if (ANY_HASH_LIKELY(align == ANY_HASH_ALIGNED))
-        return any_hash_little_endian
+        return ANY_HASH_LITTLE_ENDIAN
             ? *(const any_hash32_t *)data
             : ANY_HASH_SWAP32(*(const any_hash32_t *)data);
 
     any_hash32_t hash;
     memcpy(&hash, data, 4);
 
-    return any_hash_little_endian
+    return ANY_HASH_LITTLE_ENDIAN
         ? hash
         : ANY_HASH_SWAP32(hash);
 }
@@ -258,14 +264,14 @@ static inline any_hash64_t any_hash_rotl64(any_hash64_t hash, uint32_t bits)
 static inline any_hash64_t any_hash_fetch64(const uint8_t *data, int_fast32_t align)
 {
     if (ANY_HASH_LIKELY(align == ANY_HASH_ALIGNED))
-        return any_hash_little_endian
+        return ANY_HASH_LITTLE_ENDIAN
             ? *(const any_hash64_t *)data
             : ANY_HASH_SWAP64(*(const any_hash64_t *)data);
 
     any_hash64_t hash;
     memcpy(&hash, data, 8);
 
-    return any_hash_little_endian
+    return ANY_HASH_LITTLE_ENDIAN
         ? hash
         : ANY_HASH_SWAP64(hash);
 }
