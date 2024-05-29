@@ -200,10 +200,6 @@ typedef enum {
 #define ANY_LOG_ATTRIBUTE(...)
 #endif
 
-#ifdef __cpluscplus
-extern "C" {
-#endif
-
 // All log functions will output to the file stream specified by any_log_stream.
 //
 // You should always set this global to a valid stream (eg in main) before
@@ -290,10 +286,6 @@ ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
 ANY_LOG_ATTRIBUTE(nonnull(1, 4))
 void any_log_panic(const char *file, int line, const char *module,
                    const char *func, const char *format, ...);
-
-#ifdef __cpluscplus
-}
-#endif
 
 #endif
 

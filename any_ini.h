@@ -23,6 +23,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+// String parser (provided by any_ini_t)
+
 typedef struct {
     const char *source;
     size_t length;
@@ -30,22 +32,50 @@ typedef struct {
     size_t line;
 } any_ini_t;
 
+// Initialize the parser with a string.
+//
 void any_ini_init(any_ini_t *ini, const char *source, size_t length);
 
+// Check if the parser has reached the end of the string.
+//
 bool any_ini_eof(any_ini_t *ini);
 
+// Get the current line reached by the parser.
+//
+size_t any_ini_line(any_ini_t *ini);
+
+// Get the next section.
+// This function will return NULL if the parser has reached the end.
+//
 char *any_ini_next_section(any_ini_t *ini);
 
+// Get the next pair key.
+// This function will return NULL if the section has ended.
+//
 char *any_ini_next_key(any_ini_t *ini);
 
+// Get the value for the current pair.
+// This function will return NULL if nothing is found.
+//
+// NOTE: You should always call any_ini_next_key before this function.
+//
 char *any_ini_next_value(any_ini_t *ini);
+
+// Stream parser (provided by any_ini_stream_t)
+//
+// Can be disabled by defining ANY_INI_NO_STREAM.
 
 #ifndef ANY_INI_NO_STREAM
 
+// Specify the size of the temporary line buffer used by the stream parser.
+//
 #ifndef ANY_INI_BUFFER_SIZE
 #define ANY_INI_BUFFER_SIZE 512
 #endif
 
+// The stream parser can be initialized with a function similar to fgets.
+// This function should read up to size chars from stream and stop at newlines.
+//
 typedef char *(*any_ini_stream_read_t)(char *string, int size, void *stream);
 
 typedef struct {
@@ -57,16 +87,41 @@ typedef struct {
     bool eof;
 } any_ini_stream_t;
 
+// Initialize the parser with a read function and a stream.
+//
 void any_ini_stream_init(any_ini_stream_t *ini, any_ini_stream_read_t read, void *stream);
 
+// Initialize the parser with a file stream.
+//
+// NOTE: This is just a shorthand function equivalent to
+//
+//       any_ini_stream_init(ini, fgets, file);
+//
 void any_ini_file_init(any_ini_stream_t *ini, FILE *file);
 
+// Check if the parser has reached the end of the stream.
+//
 bool any_ini_stream_eof(any_ini_stream_t *ini);
 
+// Get the current line reached by the stream parser.
+//
+size_t any_ini_stream_line(any_ini_stream_t *ini);
+
+// Get the next section from the stream.
+// This function will return NULL if the parser has reached the end.
+//
 char *any_ini_stream_next_section(any_ini_stream_t *ini);
 
+// Get the next pair key from the stream.
+// This function will return NULL if the section has ended.
+//
 char *any_ini_stream_next_key(any_ini_stream_t *ini);
 
+// Get the value for the current pair from the stream.
+// This function will return NULL if nothing is found.
+//
+// NOTE: You should always call any_ini_next_key before this function.
+//
 char *any_ini_stream_next_value(any_ini_stream_t *ini);
 
 #endif
@@ -78,30 +133,68 @@ char *any_ini_stream_next_value(any_ini_stream_t *ini);
 #include <string.h>
 #include <ctype.h>
 
-
+// The strings returned from the parser are allocated with ANY_INI_MALLOC.
+// You can change allocation strategy by defining this macro in the
+// implementation file like so
+//
+//    #define ANY_INI_IMPLEMENT
+//    #define ANY_INI_MALLOC my_malloc
+//    #define ANY_INI_REALLOC my_realloc
+//    #include "any_ini.h"
+//
+// ANY_INI_MALLOC is used by the string parser and ANY_INI_REALLOC is used
+// by the stream parser. If you defined ANY_INI_NO_STREAM you can ignore
+// the former function.
+//
 #ifndef ANY_INI_MALLOC
 #include <stdlib.h>
 #define ANY_INI_MALLOC malloc
-
-// NOTE: ANY_INI_REALLOC is only used by the any_ini_stream_* functions
-//       Feel free to ignore this if you defined ANY_INI_NO_STREAM
 #define ANY_INI_REALLOC realloc
 #endif
 
+// You can define ANY_INI_DELIM_COMMENT to specify which char starts a comment.
+// By default it is ';'.
+// Additionally you can specify a second character with ANY_INI_DELIM_COMMENT2.
+// For example
+//
+//    #define ANY_INI_DELIM_COMMENT2 '#'
+//    #include "any_ini.h"
+//
 #ifndef ANY_INI_DELIM_COMMENT
 #define ANY_INI_DELIM_COMMENT ';'
 #endif
 
+// You can define ANY_INI_DELIM_PAIR to specify which char divides a key from
+// the value in a pair.
+// By default it is '='.
+//
 #ifndef ANY_INI_DELIM_PAIR
 #define ANY_INI_DELIM_PAIR '='
 #endif
 
+// You can define ANY_INI_SECTION_START to specify which char starts a section.
+// By default it is '['.
+//
 #ifndef ANY_INI_SECTION_START
 #define ANY_INI_SECTION_START '['
 #endif
 
+// You can define ANY_INI_SECTION_END to specify which char ends a section.
+// By default it is ']'.
+//
 #ifndef ANY_INI_SECTION_END
 #define ANY_INI_SECTION_END ']'
+#endif
+
+// The parsers allow values to stretch multiple lines if a ANY_INI_LINE_ESCAPE
+// is found just before the newline character.
+// By default ANY_INI_LINE_ESCAPE is '\'.
+//
+// You can define the macro ANY_INI_NO_MULTILINE if you want to disable
+// multiline handling.
+//
+#ifndef ANY_INI_LINE_ESCAPE
+#define ANY_INI_LINE_ESCAPE '\\'
 #endif
 
 static size_t any_ini_trim(const char *source, size_t start, size_t end)
@@ -110,8 +203,8 @@ static size_t any_ini_trim(const char *source, size_t start, size_t end)
     return end - start;
 }
 
-// If ANY_INI_NO_MULTILINE is defined it copies verbatim the input, otherwise it will
-// remove the sequences '\\\r\n' and '\\\n' while copying
+// If ANY_INI_NO_MULTILINE is defined it copies verbatim the input, otherwise
+// it will remove the sequences '\\\r\n' and '\\\n' while copying
 static size_t any_ini_copy(char *dest, const char *source, size_t length)
 {
 #ifdef ANY_INI_NO_MULTILINE
@@ -120,10 +213,10 @@ static size_t any_ini_copy(char *dest, const char *source, size_t length)
 #else
     size_t i = 0, j = 0;
     while (i < length) {
-        if (source[i] == '\\') {
+        if (source[i] == ANY_INI_LINE_ESCAPE) {
             if (i + 1 < length && source[i + 1] == '\n')
                 i += 2;
-            else if (i + 2 < length && source[i + 1] == '\r' && source[i + 2] == '\\')
+            else if (i + 2 < length && source[i + 1] == '\r' && source[i + 2] == '\n')
                 i += 3;
             continue;
         }
@@ -172,8 +265,9 @@ static bool any_ini_skip_pair(any_ini_t *ini, bool key)
     switch (ini->source[ini->cursor]) {
         case '\n':
 #ifndef ANY_INI_NO_MULTILINE
-            if ((ini->cursor > 2 && ini->source[ini->cursor - 1] == '\r' && ini->source[ini->cursor - 2] == '\\') ||
-                (ini->cursor > 1 && ini->source[ini->cursor - 1] == '\\')) {
+            if ((ini->cursor > 2 && ini->source[ini->cursor - 1] == '\r' &&
+                 ini->source[ini->cursor - 2] == ANY_INI_LINE_ESCAPE) ||
+                (ini->cursor > 1 && ini->source[ini->cursor - 1] == ANY_INI_LINE_ESCAPE)) {
                 ini->line++;
                 return true;
             }
@@ -206,6 +300,11 @@ void any_ini_init(any_ini_t *ini, const char *source, size_t length)
 bool any_ini_eof(any_ini_t *ini)
 {
     return ini->cursor >= ini->length;
+}
+
+size_t any_ini_line(any_ini_t *ini)
+{
+    return ini->line;
 }
 
 char *any_ini_next_section(any_ini_t *ini)
@@ -272,19 +371,11 @@ static void any_ini_stream_read(any_ini_stream_t *ini)
 
 static void any_ini_stream_skip_line(any_ini_stream_t *ini)
 {
-    while (true) {
-        switch (ini->buffer[ini->cursor]) {
-            case '\n':
-                return;
-
-            case '\0':
-                any_ini_stream_read(ini);
-                break;
-
-            default:
-                ini->cursor++;
-                break;
-        }
+    while (!ini->eof && ini->buffer[ini->cursor] != '\n') {
+        if (ini->buffer[ini->cursor] == '\0')
+            any_ini_stream_read(ini);
+        else
+            ini->cursor++;
     }
 }
 
@@ -406,6 +497,11 @@ void any_ini_file_init(any_ini_stream_t *ini, FILE *file)
 bool any_ini_stream_eof(any_ini_stream_t *ini)
 {
     return ini->eof;
+}
+
+size_t any_ini_stream_line(any_ini_stream_t *ini)
+{
+    return ini->line;
 }
 
 char *any_ini_stream_next_section(any_ini_stream_t *ini)
