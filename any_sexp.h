@@ -1,3 +1,25 @@
+// any_sexp
+//
+// A single-file library that provides a simple and somewhat opinionated
+// interface for parsing and manipulating s-expressions.
+//
+// Note that the library does not offer anything that can evaluate the
+// s-expressions, but that can be easily implemented separately.
+//
+// To use this library you should choose a suitable file to put the
+// implementation and define ANY_SEXP_IMPLEMENT. For example
+//
+//    #define ANY_SEXP_IMPLEMENT
+//    #include "any_sexp.h"
+//
+// Additionally, you can customize the library behavior by defining certain
+// macros in the file where you put the implementation. You can see which are
+// supported by reading the code guarded by ANY_SEXP_IMPLEMENT.
+//
+// This library is licensed under the terms of the MIT license.
+// A copy of the license is included at the end of this file.
+//
+
 #ifndef ANY_SEXP_INCLUDE
 #define ANY_SEXP_INCLUDE
 
@@ -10,6 +32,7 @@ typedef enum {
 	ANY_SEXP_TAG_NIL    = 0,
 	ANY_SEXP_TAG_CONS   = 1 << 0,
 	ANY_SEXP_TAG_SYMBOL = 1 << 1,
+	ANY_SEXP_TAG_STRING = 1 << 2,
 } any_sexp_tag_t;
 
 #ifdef ANY_SEXP_NO_BOXING
@@ -28,6 +51,7 @@ typedef struct any_sexp {
 #define ANY_SEXP_GET_TAG(sexp)    ((sexp).tag)
 #define ANY_SEXP_GET_CONS(sexp)   ((sexp).cons)
 #define ANY_SEXP_GET_SYMBOL(sexp) ((sexp).symbol)
+#define ANY_SEXP_GET_STRING(sexp) ((sexp).symbol)
 
 #else
 
@@ -43,6 +67,7 @@ typedef void *any_sexp_t;
 #define ANY_SEXP_GET_TAG(sexp)    (((uintptr_t)(sexp) >> ANY_SEXP_BITS_SHIFT) & 0xf)
 #define ANY_SEXP_GET_CONS(sexp)   ((any_sexp_cons_t *)ANY_SEXP_UNTAG(sexp))
 #define ANY_SEXP_GET_SYMBOL(sexp) (((char *)ANY_SEXP_UNTAG(sexp)))
+#define ANY_SEXP_GET_STRING(sexp) (((char *)ANY_SEXP_UNTAG(sexp)))
 
 #endif
 
@@ -60,8 +85,8 @@ typedef struct any_sexp_cons {
 	any_sexp_t cdr;
 } any_sexp_cons_t;
 
-#ifndef ANY_SEXP_SYMBOL_MAX
-#define ANY_SEXP_SYMBOL_MAX 256
+#ifndef ANY_SEXP_BUFFER_SIZE
+#define ANY_SEXP_BUFFER_SIZE 512
 #endif
 
 typedef char (*any_sexp_getchar_t)(void *stream);
@@ -94,6 +119,8 @@ any_sexp_t any_sexp_nil(void);
 
 any_sexp_t any_sexp_symbol(char *symbol, size_t length);
 
+any_sexp_t any_sexp_string(char *string, size_t length);
+
 any_sexp_t any_sexp_quote(any_sexp_t sexp);
 
 any_sexp_t any_sexp_cons(any_sexp_t car, any_sexp_t cdr);
@@ -122,6 +149,22 @@ void any_sexp_free(any_sexp_t sexp);
 
 #ifndef ANY_SEXP_CHAR_COMMENT
 #define ANY_SEXP_CHAR_COMMENT ';'
+#endif
+
+#ifndef ANY_SEXP_CHAR_OPEN
+#define ANY_SEXP_CHAR_OPEN '('
+#endif
+
+#ifndef ANY_SEXP_CHAR_CLOSE
+#define ANY_SEXP_CHAR_CLOSE ')'
+#endif
+
+#ifndef ANY_SEXP_CHAR_STRING
+#define ANY_SEXP_CHAR_STRING '"'
+#endif
+
+#ifndef ANY_SEXP_CHAR_ESCAPE
+#define ANY_SEXP_CHAR_ESCAPE '\\'
 #endif
 
 #ifndef ANY_SEXP_CHAR_QUOTE
@@ -197,15 +240,16 @@ bool any_sexp_parser_eof(any_sexp_parser_t *parser)
 
 any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser)
 {
+	char buffer[ANY_SEXP_BUFFER_SIZE + 1];
+
 	any_sexp_parser_skip(parser);
 
 	// Symbol
 	if (any_sexp_issym(parser->c)) {
-		char buffer[ANY_SEXP_SYMBOL_MAX + 1];
 		size_t length = 0;
 
 		do {
-			if (length < ANY_SEXP_SYMBOL_MAX)
+			if (length < ANY_SEXP_BUFFER_SIZE)
 				buffer[length++] = parser->c;
 
 			any_sexp_parser_advance(parser);
@@ -213,6 +257,30 @@ any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser)
 
 		return any_sexp_symbol(buffer, length);
 	}
+
+#ifndef ANY_SEXP_NO_STRING
+	// String
+	if (parser->c == ANY_SEXP_CHAR_STRING) {
+		any_sexp_parser_advance(parser);
+
+		size_t length = 0;
+		char prev = '\0';
+
+		while (!any_sexp_parser_eof(parser)) {
+			if (parser->c == ANY_SEXP_CHAR_STRING && prev != ANY_SEXP_CHAR_ESCAPE)
+				break;
+
+			if (length < ANY_SEXP_BUFFER_SIZE)
+				buffer[length++] = parser->c;
+
+			prev = parser->c;
+			any_sexp_parser_advance(parser);
+		}
+
+		any_sexp_parser_advance(parser);
+		return any_sexp_string(buffer, length);
+	}
+#endif
 
 #ifndef ANY_SEXP_NO_QUOTE
 	// Quote
@@ -223,12 +291,12 @@ any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser)
 #endif
 
 	// List
-	if (parser->c == '(') {
+	if (parser->c == ANY_SEXP_CHAR_OPEN) {
 		any_sexp_parser_advance(parser);
 		any_sexp_parser_skip(parser);
 
 		any_sexp_t sexp = ANY_SEXP_NIL;
-		while (!any_sexp_parser_eof(parser) && parser->c != ')') {
+		while (!any_sexp_parser_eof(parser) && parser->c != ANY_SEXP_CHAR_CLOSE) {
 			any_sexp_t sub = any_sexp_parser_next(parser);
 			sexp = any_sexp_cons(sub, sexp); // reversed
 
@@ -281,22 +349,37 @@ any_sexp_t any_sexp_nil(void)
 
 any_sexp_t any_sexp_symbol(char *symbol, size_t length)
 {
-	if (symbol == NULL)
+	any_sexp_t sexp = any_sexp_string(symbol, length);
+	if (ANY_SEXP_IS_ERROR(sexp))
 		return ANY_SEXP_ERROR;
 
-	char *sym = ANY_SEXP_MALLOC(length + 1);
-	if (sym == NULL)
+	// Override tag
+#ifndef ANY_SEXP_NO_BOXING
+	return ANY_SEXP_TAG(ANY_SEXP_UNTAG(sexp), ANY_SEXP_TAG_SYMBOL);
+#else
+	sexp.tag = ANY_SEXP_TAG_SYMBOL;
+	return sexp;
+#endif
+}
+
+any_sexp_t any_sexp_string(char *string, size_t length)
+{
+	if (string == NULL)
 		return ANY_SEXP_ERROR;
 
-	memcpy(sym, symbol, length);
-	sym[length] = '\0';
+	char *copy = ANY_SEXP_MALLOC(length + 1);
+	if (copy == NULL)
+		return ANY_SEXP_ERROR;
+
+	memcpy(copy, string, length);
+	copy[length] = '\0';
 
 #ifndef ANY_SEXP_NO_BOXING
-	return ANY_SEXP_TAG(sym, ANY_SEXP_TAG_SYMBOL);
+	return ANY_SEXP_TAG(copy, ANY_SEXP_TAG_STRING);
 #else
 	any_sexp_t sexp = {
-		.tag = ANY_SEXP_TAG_SYMBOL,
-		.symbol = sym,
+		.tag = ANY_SEXP_TAG_STRING,
+		.symbol = copy,
 	};
 	return sexp;
 #endif
@@ -391,6 +474,10 @@ void any_sexp_print(any_sexp_t sexp)
 		case ANY_SEXP_TAG_SYMBOL:
 			printf("%s", ANY_SEXP_GET_SYMBOL(sexp));
 			break;
+
+		case ANY_SEXP_TAG_STRING:
+			printf("\"%s\"", ANY_SEXP_GET_STRING(sexp));
+			break;
 	}
 }
 
@@ -408,9 +495,33 @@ void any_sexp_free(any_sexp_t sexp)
 			break;
 
 		case ANY_SEXP_TAG_SYMBOL:
+		case ANY_SEXP_TAG_STRING:
 			ANY_SEXP_FREE(ANY_SEXP_GET_SYMBOL(sexp));
 			break;
 	}
 }
 
 #endif
+
+// MIT License
+//
+// Copyright (c) 2024 Federico Angelilli
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
