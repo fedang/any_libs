@@ -10,7 +10,6 @@ typedef enum {
 	ANY_SEXP_TAG_NIL    = 0,
 	ANY_SEXP_TAG_CONS   = 1 << 0,
 	ANY_SEXP_TAG_SYMBOL = 1 << 1,
-	ANY_SEXP_TAG_QUOTE  = 1 << 2,
 } any_sexp_tag_t;
 
 #ifdef ANY_SEXP_NO_BOXING
@@ -20,41 +19,41 @@ typedef struct any_sexp {
 	union {
 		struct any_sexp_cons *cons;
 		char *symbol;
-		struct any_sexp *quote;
 	};
 } any_sexp_t;
 
-#define ANY_SEXP_NIL ((any_sexp_t){ ANY_SEXP_TAG_NIL })
-#define ANY_SEXP_ERROR ((any_sexp_t){ ANY_SEXP_TAG_ERROR })
+#define ANY_SEXP_ERROR (any_sexp_error())
+#define ANY_SEXP_NIL   (any_sexp_nil())
 
-#define ANY_SEXP_GET_TAG(sexp) ((sexp).tag)
-#define ANY_SEXP_GET_CONS(sexp) ((sexp).cons)
+#define ANY_SEXP_GET_TAG(sexp)    ((sexp).tag)
+#define ANY_SEXP_GET_CONS(sexp)   ((sexp).cons)
 #define ANY_SEXP_GET_SYMBOL(sexp) ((sexp).symbol)
 
 #else
 
 typedef void *any_sexp_t;
 
-#define ANY_SEXP_NIL (any_sexp_t)NULL
 #define ANY_SEXP_ERROR (any_sexp_t)UINTPTR_MAX
+#define ANY_SEXP_NIL   (any_sexp_t)NULL
 
-#define ANY_SEXP_UNTAG(sexp) (any_sexp_t)((uintptr_t)(sexp) & 0x0fffffffffffffff)
-#define ANY_SEXP_TAG(sexp, tag) (any_sexp_t)((uintptr_t)(sexp) | ((uintptr_t)tag << 60))
-#define ANY_SEXP_GET_TAG(sexp) (((uintptr_t)(sexp) >> 60) & 0xf)
-#define ANY_SEXP_GET_CONS(sexp) ((any_sexp_cons_t *)ANY_SEXP_UNTAG(sexp))
-#define ANY_SEXP_GET_SYMBOL(sexp) (((char *)ANY_SEXP_UNTAG(sexp))
+#define ANY_SEXP_BITS_SHIFT  (sizeof(uintptr_t) * 8 - 4)
+#define ANY_SEXP_UNTAG(sexp) (any_sexp_t)((uintptr_t)(sexp) & (UINTPTR_MAX & ~((uintptr_t)0xf << ANY_SEXP_BITS_SHIFT)))
+
+#define ANY_SEXP_TAG(sexp, tag)   (any_sexp_t)((uintptr_t)(sexp) | ((uintptr_t)tag << ANY_SEXP_BITS_SHIFT))
+#define ANY_SEXP_GET_TAG(sexp)    (((uintptr_t)(sexp) >> ANY_SEXP_BITS_SHIFT) & 0xf)
+#define ANY_SEXP_GET_CONS(sexp)   ((any_sexp_cons_t *)ANY_SEXP_UNTAG(sexp))
+#define ANY_SEXP_GET_SYMBOL(sexp) (((char *)ANY_SEXP_UNTAG(sexp)))
 
 #endif
 
 #define ANY_SEXP_IS_TAG(sexp, tag) (ANY_SEXP_GET_TAG(sexp) == (tag))
-#define ANY_SEXP_IS_ERROR(sexp) (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_ERROR))
-#define ANY_SEXP_IS_NIL(sexp) (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_NIL))
-#define ANY_SEXP_IS_CONS(sexp) (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_CONS))
-#define ANY_SEXP_IS_QUOTE(sexp) (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_QUOTE))
+#define ANY_SEXP_IS_ERROR(sexp)    (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_ERROR))
+#define ANY_SEXP_IS_NIL(sexp)      (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_NIL))
+#define ANY_SEXP_IS_CONS(sexp)     (ANY_SEXP_IS_TAG(sexp, ANY_SEXP_TAG_CONS))
 
 // NOTE: Use it only after checking the tag!
-#define ANY_SEXP_GET_CAR(sexp)  (ANY_SEXP_GET_CONS(sexp)->car)
-#define ANY_SEXP_GET_CDR(sexp)  (ANY_SEXP_GET_CONS(sexp)->cdr)
+#define ANY_SEXP_GET_CAR(sexp) (ANY_SEXP_GET_CONS(sexp)->car)
+#define ANY_SEXP_GET_CDR(sexp) (ANY_SEXP_GET_CONS(sexp)->cdr)
 
 typedef struct any_sexp_cons {
 	any_sexp_t car;
@@ -89,6 +88,14 @@ bool any_sexp_parser_eof(any_sexp_parser_t *parser);
 
 any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser);
 
+any_sexp_t any_sexp_error(void);
+
+any_sexp_t any_sexp_nil(void);
+
+any_sexp_t any_sexp_symbol(char *symbol, size_t length);
+
+any_sexp_t any_sexp_quote(any_sexp_t sexp);
+
 any_sexp_t any_sexp_cons(any_sexp_t car, any_sexp_t cdr);
 
 any_sexp_t any_sexp_car(any_sexp_t sexp);
@@ -119,6 +126,10 @@ void any_sexp_free(any_sexp_t sexp);
 
 #ifndef ANY_SEXP_CHAR_QUOTE
 #define ANY_SEXP_CHAR_QUOTE '\''
+#endif
+
+#ifndef ANY_SEXP_QUOTE_SYMBOL
+#define ANY_SEXP_QUOTE_SYMBOL "quote"
 #endif
 
 // Extended alphabetic characters
@@ -200,44 +211,14 @@ any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser)
 			any_sexp_parser_advance(parser);
 		} while (any_sexp_issym(parser->c));
 
-		char *symbol = ANY_SEXP_MALLOC(length + 1);
-		if (symbol == NULL)
-			return ANY_SEXP_ERROR;
-
-		memcpy(symbol, buffer, length);
-		symbol[length] = '\0';
-
-#ifndef ANY_SEXP_NO_BOXING
-		return ANY_SEXP_TAG(symbol, ANY_SEXP_TAG_SYMBOL);
-#else
-		any_sexp_t sexp = {
-			.tag = ANY_SEXP_TAG_SYMBOL,
-			.symbol = symbol,
-		};
-		return sexp;
-#endif
+		return any_sexp_symbol(buffer, length);
 	}
 
 #ifndef ANY_SEXP_NO_QUOTE
 	// Quote
 	if (parser->c == ANY_SEXP_CHAR_QUOTE) {
 		any_sexp_parser_advance(parser);
-
-		any_sexp_t *quote = ANY_SEXP_MALLOC(sizeof(any_sexp_t));
-		if (quote == NULL)
-			return ANY_SEXP_ERROR;
-
-		*quote = any_sexp_parser_next(parser);
-
-#ifndef ANY_SEXP_NO_BOXING
-		return (any_sexp_t )ANY_SEXP_TAG(quote, ANY_SEXP_TAG_QUOTE);
-#else
-		any_sexp_t sexp = {
-			.tag = ANY_SEXP_TAG_QUOTE,
-			.quote = quote,
-		};
-		return sexp;
-#endif
+		return any_sexp_quote(any_sexp_parser_next(parser));
 	}
 #endif
 
@@ -272,6 +253,59 @@ char any_sexp_string_getc(any_sexp_string_stream_t *stream)
 		return EOF;
 
 	return stream->source[stream->cursor++];
+}
+
+any_sexp_t any_sexp_error(void)
+{
+#ifndef ANY_SEXP_NO_BOXING
+	return ANY_SEXP_ERROR;
+#else
+	any_sexp_t sexp = {
+		.tag = ANY_SEXP_TAG_ERROR,
+	};
+	return sexp;
+#endif
+}
+
+any_sexp_t any_sexp_nil(void)
+{
+#ifndef ANY_SEXP_NO_BOXING
+	return ANY_SEXP_NIL;
+#else
+	any_sexp_t sexp = {
+		.tag = ANY_SEXP_TAG_NIL,
+	};
+	return sexp;
+#endif
+}
+
+any_sexp_t any_sexp_symbol(char *symbol, size_t length)
+{
+	if (symbol == NULL)
+		return ANY_SEXP_ERROR;
+
+	char *sym = ANY_SEXP_MALLOC(length + 1);
+	if (sym == NULL)
+		return ANY_SEXP_ERROR;
+
+	memcpy(sym, symbol, length);
+	sym[length] = '\0';
+
+#ifndef ANY_SEXP_NO_BOXING
+	return ANY_SEXP_TAG(sym, ANY_SEXP_TAG_SYMBOL);
+#else
+	any_sexp_t sexp = {
+		.tag = ANY_SEXP_TAG_SYMBOL,
+		.symbol = sym,
+	};
+	return sexp;
+#endif
+}
+
+any_sexp_t any_sexp_quote(any_sexp_t sexp)
+{
+	any_sexp_t quote = any_sexp_symbol(ANY_SEXP_QUOTE_SYMBOL, strlen(ANY_SEXP_QUOTE_SYMBOL));
+	return any_sexp_cons(quote, any_sexp_cons(sexp, ANY_SEXP_NIL));
 }
 
 any_sexp_t any_sexp_cons(any_sexp_t car, any_sexp_t cdr)
@@ -355,20 +389,7 @@ void any_sexp_print(any_sexp_t sexp)
 			break;
 
 		case ANY_SEXP_TAG_SYMBOL:
-#ifndef ANY_SEXP_NO_BOXING
-			printf("%s", (char *)ANY_SEXP_UNTAG(sexp));
-#else
-			printf("%s", sexp.symbol);
-#endif
-			break;
-
-		case ANY_SEXP_TAG_QUOTE:
-			putchar('\'');
-#ifndef ANY_SEXP_NO_BOXING
-			any_sexp_print(*(any_sexp_t *)ANY_SEXP_UNTAG(sexp));
-#else
-			any_sexp_print(*sexp.quote);
-#endif
+			printf("%s", ANY_SEXP_GET_SYMBOL(sexp));
 			break;
 	}
 }
@@ -388,16 +409,6 @@ void any_sexp_free(any_sexp_t sexp)
 
 		case ANY_SEXP_TAG_SYMBOL:
 			ANY_SEXP_FREE(ANY_SEXP_GET_SYMBOL(sexp));
-			break;
-
-		case ANY_SEXP_TAG_QUOTE:
-#ifndef ANY_SEXP_NO_BOXING
-			any_sexp_free(*(any_sexp_t *)ANY_SEXP_UNTAG(sexp));
-			ANY_SEXP_FREE(ANY_SEXP_UNTAG(sexp));
-#else
-			any_sexp_free(*sexp.quote);
-			ANY_SEXP_FREE(sexp.quote);
-#endif
 			break;
 	}
 }

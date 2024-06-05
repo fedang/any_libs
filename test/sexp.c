@@ -12,7 +12,8 @@ int main()
 					"() id ciao 20 a1020|x|3a\n"
 					";comm\n3433 ;s\n"
 					"'symbol 'another 'a\n"
-					"'(a b c) '('a) ''x\n";
+					"'(a b c) '('a) ''x\n"
+					"\"string\" (\"a\" \"b\")\n";
 
 	any_sexp_string_stream_t stream;
 	any_sexp_parser_t parser;
