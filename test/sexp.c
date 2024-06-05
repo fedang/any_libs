@@ -14,8 +14,9 @@ int main()
 					"'symbol 'another 'a\n"
 					"'(a b c) '('a) ''x\n";
 
+	any_sexp_string_stream_t stream;
 	any_sexp_parser_t parser;
-	any_sexp_parser_init(&parser, s, strlen(s));
+	any_sexp_parser_init_string(&parser, &stream, s, strlen(s));
 
 	any_sexp_t sexp = any_sexp_parser_next(&parser);
 	while (!ANY_SEXP_IS_ERROR(sexp)) {
@@ -25,7 +26,7 @@ int main()
 		sexp = any_sexp_parser_next(&parser);
 	}
 
-	printf("%zu\n", sizeof(any_sexp_t));
+	//printf("%zu\n", sizeof(any_sexp_t));
 
 	return 0;
 }
