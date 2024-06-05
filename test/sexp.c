@@ -2,6 +2,7 @@
 #include <string.h>
 
 #define ANY_SEXP_IMPLEMENT
+#define ANY_SEXP_NO_BOXING
 #include "any_sexp.h"
 
 int main()
@@ -16,12 +17,15 @@ int main()
 	any_sexp_parser_t parser;
 	any_sexp_parser_init(&parser, s, strlen(s));
 
-	any_sexp_t *sexp;
-	while ((sexp = any_sexp_parser_next(&parser)) != ANY_SEXP_ERROR) {
+	any_sexp_t sexp = any_sexp_parser_next(&parser);
+	while (!ANY_SEXP_IS_ERROR(sexp)) {
 		any_sexp_print(sexp);
 		putchar('\n');
 		any_sexp_free(sexp);
+		sexp = any_sexp_parser_next(&parser);
 	}
+
+	printf("%zu\n", sizeof(any_sexp_t));
 
 	return 0;
 }
