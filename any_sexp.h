@@ -91,6 +91,8 @@ typedef struct any_sexp_cons {
 
 typedef char (*any_sexp_getchar_t)(void *stream);
 
+typedef int (*any_sexp_fprintf_t)(void *stream, const char *format, ...);
+
 typedef struct {
 	const char *source;
 	size_t length;
@@ -131,7 +133,11 @@ any_sexp_t any_sexp_cdr(any_sexp_t sexp);
 
 any_sexp_t any_sexp_reverse(any_sexp_t sexp);
 
-void any_sexp_print(any_sexp_t sexp);
+int any_sexp_stream_print(any_sexp_t sexp, any_sexp_fprintf_t fprintf, void *stream);
+
+int any_sexp_fprint(any_sexp_t sexp, FILE *file);
+
+int any_sexp_print(any_sexp_t sexp);
 
 void any_sexp_free(any_sexp_t sexp);
 
@@ -293,10 +299,15 @@ any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser)
 	// List
 	if (parser->c == ANY_SEXP_CHAR_OPEN) {
 		any_sexp_parser_advance(parser);
-		any_sexp_parser_skip(parser);
 
 		any_sexp_t sexp = ANY_SEXP_NIL;
-		while (!any_sexp_parser_eof(parser) && parser->c != ANY_SEXP_CHAR_CLOSE) {
+
+		while (!any_sexp_parser_eof(parser)) {
+			any_sexp_parser_skip(parser);
+
+			if (parser->c == ANY_SEXP_CHAR_CLOSE)
+				break;
+
 			any_sexp_t sub = any_sexp_parser_next(parser);
 			sexp = any_sexp_cons(sub, sexp); // reversed
 
@@ -304,8 +315,6 @@ any_sexp_t any_sexp_parser_next(any_sexp_parser_t *parser)
 				any_sexp_free(sexp);
 				return ANY_SEXP_ERROR;
 			}
-
-			any_sexp_parser_skip(parser);
 		}
 
 		any_sexp_parser_advance(parser);
@@ -450,35 +459,44 @@ any_sexp_t any_sexp_reverse(any_sexp_t sexp)
 	return prev;
 }
 
-void any_sexp_print(any_sexp_t sexp)
+int any_sexp_stream_print(any_sexp_t sexp, any_sexp_fprintf_t fprintf, void *stream)
 {
+	int c = 0;
 	switch (ANY_SEXP_GET_TAG(sexp)) {
 		case ANY_SEXP_TAG_ERROR:
-			printf("<error>");
-			break;
+			return fprintf(stream, "<error>");
 
 		case ANY_SEXP_TAG_NIL:
-			printf("()");
-			break;
+			return fprintf(stream, "()");
 
 		case ANY_SEXP_TAG_CONS:
-			putchar('(');
+			c += fprintf(stream, "(");
 			while (!ANY_SEXP_IS_NIL(sexp) && !ANY_SEXP_IS_ERROR(sexp)) {
-				any_sexp_print(any_sexp_car(sexp));
+				c += any_sexp_stream_print(any_sexp_car(sexp), fprintf, stream);
 				sexp = any_sexp_cdr(sexp);
-				if (!ANY_SEXP_IS_NIL(sexp)) putchar(' ');
+
+				if (!ANY_SEXP_IS_NIL(sexp))
+					c += fprintf(stream, " ");
 			}
-			putchar(')');
-			break;
+			c += fprintf(stream, ")");
+			return c;
 
 		case ANY_SEXP_TAG_SYMBOL:
-			printf("%s", ANY_SEXP_GET_SYMBOL(sexp));
-			break;
+			return fprintf(stream, "%s", ANY_SEXP_GET_SYMBOL(sexp));
 
 		case ANY_SEXP_TAG_STRING:
-			printf("\"%s\"", ANY_SEXP_GET_STRING(sexp));
-			break;
+			return fprintf(stream, "\"%s\"", ANY_SEXP_GET_STRING(sexp));
 	}
+}
+
+int any_sexp_fprint(any_sexp_t sexp, FILE *file)
+{
+	return any_sexp_stream_print(sexp, (any_sexp_fprintf_t)fprintf, file);
+}
+
+int any_sexp_print(any_sexp_t sexp)
+{
+	return any_sexp_fprint(sexp, stdout);
 }
 
 void any_sexp_free(any_sexp_t sexp)
