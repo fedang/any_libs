@@ -2,7 +2,8 @@
 #include <string.h>
 
 #define ANY_SEXP_IMPLEMENT
-#define ANY_SEXP_NO_BOXING
+//#define ANY_SEXP_NO_BOXING
+//#define ANY_SEXP_NO_STRING
 #include "any_sexp.h"
 
 int main()
@@ -21,7 +22,7 @@ int main()
 
     any_sexp_t sexp = any_sexp_read(&reader);
     while (!ANY_SEXP_IS_ERROR(sexp)) {
-        any_sexp_print(sexp);
+        printf("  %d   ", any_sexp_print(sexp));
         putchar('\n');
         any_sexp_free(sexp);
         sexp = any_sexp_read(&reader);
