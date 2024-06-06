@@ -132,20 +132,27 @@ typedef enum {
 //
 // By default ANY_LOG_VALUE_TYPE_SEP is the character ':'.
 //
-// type_specifier |           type         | default format
-//                |                        |
-//        b       | bool (promoted to int) | "%s", b ? true : false
-//      d, i      | int                    | "%d"
-//      x, u      | unsigned int           | "%#x"
-//       l        | long int               | "%ld"
-//       p        | void *                 | "%p"
-//       f        | double                 | "%lf"
-//       s        | char * (0-terminated)  | "%s"
+// type_specifier |           type               | default format
+//                |                              |
+//       b        | bool (promoted to int)       | "%s", b ? "true" : "false"
+//      d, i      | int                          | "%d"
+//      x, u      | unsigned int                 | "%#x"
+//       l        | long int                     | "%ld"
+//       p        | void *                       | "%p"
+//       f        | double                       | "%lf"
+//       s        | char * (0-terminated)        | "%s"
+//
+//       c        | any_log_formatter_t (function), void *
 //
 // If no type specifier is given the function will assume the type given
 // by ANY_LOG_VALUE_DEFAULT_TYPE (by default string).
 //
-// For example
+// You can log custom types with the 'c' specifier. Then you will have to
+// pass two parameters: a format function of type any_log_formatter_t and
+// a value parameter of type void *.
+// By defining ANY_LOG_NO_CUSTOM you can disable the custom type specifier.
+//
+// Example usage of value logging
 //
 //    log_value_info("Created graphical context",
 //                   "d:width", width,
@@ -153,6 +160,7 @@ typedef enum {
 //                   "p:window", window_handle,
 //                   "f:scale", scale_factor_dpi,
 //                   "b:hidden", visibility == HIDDEN,
+//                   "c:widgets", ANY_LOG_FORMATTER(widget_format), widgets,
 //                   "appname", "nice app");
 //
 // In the implementation you can customize the format of every key-value pair
@@ -194,6 +202,16 @@ typedef enum {
 #define log_value_trace(...) any_log_value(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #endif
 
+#ifndef ANY_LOG_NO_CUSTOM
+
+// The type of the format functions for custom types
+//
+typedef void (*any_log_formatter_t)(FILE *stream, void *value);
+
+#define ANY_LOG_FORMATTER(f) ((any_log_formatter_t)(f))
+
+#endif
+
 #ifdef __GNUC__
 #define ANY_LOG_ATTRIBUTE(...) __attribute__((__VA_ARGS__))
 #else
@@ -203,7 +221,7 @@ typedef enum {
 // All log functions will output to the file stream specified by any_log_stream.
 //
 // You should always set this global to a valid stream (eg in main) before
-// invoking any log macro or function!
+// invoking any_log macros or functions!
 //
 extern FILE *any_log_stream;
 
@@ -294,6 +312,7 @@ void any_log_panic(const char *file, int line, const char *module,
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 // For the C standard we can't assign stdout or any other streams here,
 // since they are not constant.
@@ -503,6 +522,19 @@ void any_log_format(any_log_level_t level, const char *module,
 #define ANY_LOG_VALUE_STRING(key, value) "%s=\"%s\"", key, value
 #endif
 
+#ifndef ANY_LOG_NO_CUSTOM
+
+// Format custom types with the given formatter function
+#ifndef ANY_LOG_VALUE_CUSTOM
+#define ANY_LOG_VALUE_CUSTOM(key, stream, formatter, value) \
+    do { \
+        fprintf(stream, "%s=", key); \
+        formatter(stream, value); \
+    } while (false)
+#endif
+
+#endif
+
 // The default is to use string
 #ifndef ANY_LOG_VALUE_DEFAULT
 #define ANY_LOG_VALUE_DEFAULT(key, value) ANY_LOG_VALUE_STRING(key, value)
@@ -531,43 +563,66 @@ void any_log_value(any_log_level_t level, const char *module,
     while (key != NULL) {
         if (key[0] != '\0' && key[1] == ANY_LOG_VALUE_TYPE_SEP) {
             key += 2;
-            switch (key[-2]) {
-                case 'b':
-                    fprintf(any_log_stream, ANY_LOG_VALUE_BOOL(key, va_arg(args, int)));
+            switch (tolower(key[-2])) {
+                case 'b': {
+                    int value = va_arg(args, int);
+                    fprintf(any_log_stream, ANY_LOG_VALUE_BOOL(key, value));
                     break;
+                }
 
                 case 'd':
-                case 'i':
-                    fprintf(any_log_stream, ANY_LOG_VALUE_INT(key, va_arg(args, int)));
+                case 'i': {
+                    int value = va_arg(args, int);
+                    fprintf(any_log_stream, ANY_LOG_VALUE_INT(key, value));
                     break;
+                }
 
                 case 'x':
-                case 'u':
+                case 'u': {
+                    unsigned int value = va_arg(args, unsigned int);
                     fprintf(any_log_stream, ANY_LOG_VALUE_HEX(key, va_arg(args, unsigned int)));
                     break;
+                }
 
-                case 'l':
-                    fprintf(any_log_stream, ANY_LOG_VALUE_LONG(key, va_arg(args, long int)));
+                case 'l': {
+                    long int value = va_arg(args, long int);
+                    fprintf(any_log_stream, ANY_LOG_VALUE_LONG(key, value));
                     break;
+                }
 
-                case 'p':
-                    fprintf(any_log_stream, ANY_LOG_VALUE_PTR(key, va_arg(args, void *)));
+                case 'p': {
+                    void *value = va_arg(args, void *);
+                    fprintf(any_log_stream, ANY_LOG_VALUE_PTR(key, value));
                     break;
+                }
 
-                case 'f':
-                    fprintf(any_log_stream, ANY_LOG_VALUE_DOUBLE(key, va_arg(args, double)));
+                case 'f': {
+                    double value = va_arg(args, double);
+                    fprintf(any_log_stream, ANY_LOG_VALUE_DOUBLE(key, value));
                     break;
+                }
 
-                case 's':
-                    fprintf(any_log_stream, ANY_LOG_VALUE_STRING(key, va_arg(args, char *)));
+                case 's': {
+                    char *value = va_arg(args, char *);
+                    fprintf(any_log_stream, ANY_LOG_VALUE_STRING(key, value));
                     break;
+                }
 
+#ifndef ANY_LOG_NO_CUSTOM
+                case 'c': {
+                    any_log_formatter_t formatter = va_arg(args, any_log_formatter_t);
+                    void *value = va_arg(args, void *);
+                    ANY_LOG_VALUE_CUSTOM(key, any_log_stream, formatter, value);
+                    break;
+                }
+#endif
                 default:
                     goto tdefault;
             }
         } else {
 tdefault:
-            fprintf(any_log_stream, ANY_LOG_VALUE_DEFAULT(key, va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE)));
+            ANY_LOG_VALUE_DEFAULT_TYPE value = va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE);
+            fprintf(any_log_stream, ANY_LOG_VALUE_DEFAULT(key, value));
         }
 
         key = va_arg(args, char *);

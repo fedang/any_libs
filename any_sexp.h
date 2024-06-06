@@ -377,7 +377,7 @@ any_sexp_t any_sexp_read(any_sexp_reader_t *reader)
 static int any_sexp_writer_puts(any_sexp_writer_t *writer, const char *string)
 {
     int i;
-    for (i = 0; string[i] != '\0', i++) {
+    for (i = 0; string[i] != '\0'; i++) {
         if (writer->putc(string[i], writer->stream) == EOF)
             return EOF;
     }

@@ -14,8 +14,29 @@
 #define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
 #define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
 #define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
+#define ANY_LOG_VALUE_CUSTOM(key, stream, formatter, value) \
+    do { \
+        fprintf(stream, "\"%s\": ", key); \
+        formatter(stream, value); \
+    } while (false)
 #define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
 #include "any_log.h"
+
+struct pair {
+    const char *s1, *s2;
+};
+
+void pairs_format(FILE *stream, struct pair *pairs)
+{
+    fprintf(stream, "[");
+    while (pairs->s1 && pairs->s2) {
+        fprintf(stream, "%s -> %s", pairs->s1, pairs->s2);
+        pairs++;
+        if (pairs->s1 && pairs->s2)
+            fprintf(stream, ", ");
+    }
+    fprintf(stream, "]");
+}
 
 int main()
 {
@@ -59,12 +80,20 @@ int main()
             "f:dbl", 20.3333,
             "p:a", NULL);
 
+    struct pair pairs[] = {
+        { "v", "v2" },
+        { "p", "xp" },
+        { "23", "42" },
+        { NULL, NULL },
+    };
+
     log_value_info("Created graphical context",
                    "d:width", 100,
                    "d:height", 200,
                    "p:window", NULL,
                    "f:scale", 1.23,
                    "b:hidden", true,
+                   "c:pairs", ANY_LOG_FORMATTER(pairs_format), pairs,
                    "appname", "nice app");
 
     // Test any_log_format
