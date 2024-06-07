@@ -13,8 +13,9 @@ int main()
                     "() id ciao 20 a1020|x|3a\n"
                     ";comm\n3433 ;s\n"
                     "'symbol 'another 'a\n"
-                    "'(a b c) '('a) ''x  \"escape \\\"inside the string\"\n"
-                    "\"string very long sus\" (\"a\" \"b\")\n";
+                    "'(a b c z) '('a) ''x  \"escape \\\"inside the string\"\n"
+                    "\"string very long sus\" (\"a\" \"b\")\n"
+                    "10 -20 30 41 -22345 123456789 '1\n";
 
     any_sexp_reader_t reader;
     any_sexp_reader_string_t string;
@@ -22,9 +23,10 @@ int main()
 
     any_sexp_t sexp = any_sexp_read(&reader);
     while (!ANY_SEXP_IS_ERROR(sexp)) {
-        printf("  %d   ", any_sexp_print(sexp));
+        //printf("  %d   ", any_sexp_print(sexp));
+        any_sexp_print(sexp);
         putchar('\n');
-        any_sexp_free(sexp);
+        any_sexp_free_list(sexp);
         sexp = any_sexp_read(&reader);
     }
 
