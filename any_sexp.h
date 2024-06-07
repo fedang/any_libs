@@ -310,21 +310,20 @@ any_sexp_t any_sexp_read(any_sexp_reader_t *reader)
     // Symbol | Number
     if (any_sexp_issym(reader->c)) {
         size_t length = 0;
+        bool number = true;
 
         do {
-            if (length < ANY_SEXP_READER_BUFFER_LENGTH)
+            if (length < ANY_SEXP_READER_BUFFER_LENGTH) {
+                number = number && (length == 0 && reader->c == '-' || isdigit(reader->c));
                 buffer[length++] = reader->c;
+            }
 
             any_sexp_reader_advance(reader);
         } while (any_sexp_issym(reader->c));
 
         buffer[length] = '\0';
 
-        size_t numeric = buffer[0] == '-';
-        while (numeric < length && isdigit(buffer[numeric]))
-            numeric++;
-
-        if (numeric == length) {
+        if (number) {
             intptr_t value = strtol(buffer, NULL, 10);
             return any_sexp_number(value);
         }
