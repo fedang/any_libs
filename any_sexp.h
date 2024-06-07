@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef enum {
     ANY_SEXP_TAG_ERROR  = 0xf,
@@ -130,6 +131,8 @@ void any_sexp_reader_init(any_sexp_reader_t *reader, any_sexp_getchar_t getc, vo
 
 void any_sexp_reader_string_init(any_sexp_reader_t *reader, any_sexp_reader_string_t *string, const char *source, size_t length);
 
+void any_sexp_reader_file_init(any_sexp_reader_t *reader, FILE *file);
+
 bool any_sexp_reader_end(any_sexp_reader_t *reader);
 
 any_sexp_t any_sexp_read(any_sexp_reader_t *reader);
@@ -137,8 +140,6 @@ any_sexp_t any_sexp_read(any_sexp_reader_t *reader);
 #endif
 
 #ifndef ANY_SEXP_NO_WRITER
-
-#include <stdio.h>
 
 typedef struct {
     any_sexp_putchar_t putc;
@@ -276,9 +277,9 @@ static void any_sexp_reader_skip(any_sexp_reader_t *reader)
 
 static char any_sexp_reader_string_getc(any_sexp_reader_string_t *string)
 {
-    if (string->cursor >= string->length)
-        return EOF;
-    return string->source[string->cursor++];
+    return string->cursor < string->length
+         ? string->source[string->cursor++]
+         : EOF;
 }
 
 void any_sexp_reader_init(any_sexp_reader_t *reader, any_sexp_getchar_t getc, void *stream)
@@ -294,6 +295,11 @@ void any_sexp_reader_string_init(any_sexp_reader_t *reader, any_sexp_reader_stri
     string->length = length;
     string->cursor = 0;
     any_sexp_reader_init(reader, (any_sexp_getchar_t)any_sexp_reader_string_getc, string);
+}
+
+void any_sexp_reader_file_init(any_sexp_reader_t *reader, FILE *file)
+{
+    any_sexp_reader_init(reader, (any_sexp_getchar_t)fgetc, file);
 }
 
 bool any_sexp_reader_end(any_sexp_reader_t *reader)
