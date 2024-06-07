@@ -30,6 +30,10 @@ int main()
         sexp = any_sexp_read(&reader);
     }
 
+    any_sexp_t pair = any_sexp_cons(any_sexp_number(1), any_sexp_number(2));
+    any_sexp_print(pair);
+    any_sexp_free_list(pair);
+
     //printf("%zu\n", sizeof(any_sexp_t));
 
     return 0;

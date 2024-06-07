@@ -93,7 +93,7 @@ int main()
                    "p:window", NULL,
                    "f:scale", 1.23,
                    "b:hidden", true,
-                   "c:pairs", ANY_LOG_FORMATTER(pairs_format), pairs,
+                   "g:pairs", ANY_LOG_FORMATTER(pairs_format), pairs,
                    "appname", "nice app");
 
     // Test any_log_format
