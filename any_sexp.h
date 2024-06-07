@@ -176,9 +176,13 @@ any_sexp_t any_sexp_cdr(any_sexp_t sexp);
 
 any_sexp_t any_sexp_reverse(any_sexp_t sexp);
 
-void any_sexp_free_list(any_sexp_t sexp);
+any_sexp_t any_sexp_copy(any_sexp_t sexp);
+
+any_sexp_t any_sexp_copy_list(any_sexp_t sexp);
 
 void any_sexp_free(any_sexp_t sexp);
+
+void any_sexp_free_list(any_sexp_t sexp);
 
 #endif
 
@@ -681,14 +685,38 @@ any_sexp_t any_sexp_reverse(any_sexp_t sexp)
     return prev;
 }
 
-void any_sexp_free_list(any_sexp_t sexp)
+any_sexp_t any_sexp_copy(any_sexp_t sexp)
+{
+    switch (ANY_SEXP_GET_TAG(sexp)) {
+        case ANY_SEXP_TAG_ERROR:
+        case ANY_SEXP_TAG_NIL:
+        case ANY_SEXP_TAG_NUMBER:
+            return sexp;
+
+        case ANY_SEXP_TAG_CONS:
+            return any_sexp_cons(any_sexp_car(sexp), any_sexp_cdr(sexp));
+
+        case ANY_SEXP_TAG_SYMBOL: {
+            char *symbol = ANY_SEXP_GET_SYMBOL(sexp);
+            return any_sexp_symbol(symbol, strlen(symbol));
+        }
+
+        case ANY_SEXP_TAG_STRING: {
+            char *string = ANY_SEXP_GET_STRING(sexp);
+            return any_sexp_symbol(string, strlen(string));
+        }
+    }
+}
+
+any_sexp_t any_sexp_copy_list(any_sexp_t sexp)
 {
     if (ANY_SEXP_IS_CONS(sexp)) {
-            any_sexp_free_list(any_sexp_car(sexp));
-            any_sexp_free_list(any_sexp_cdr(sexp));
+        any_sexp_t car = any_sexp_copy_list(any_sexp_car(sexp));
+        any_sexp_t cdr = any_sexp_copy_list(any_sexp_cdr(sexp));
+        return any_sexp_cons(car, cdr);
     }
 
-    any_sexp_free(sexp);
+    return any_sexp_copy(sexp);
 }
 
 void any_sexp_free(any_sexp_t sexp)
@@ -708,6 +736,16 @@ void any_sexp_free(any_sexp_t sexp)
             ANY_SEXP_FREE(ANY_SEXP_GET_SYMBOL(sexp));
             break;
     }
+}
+
+void any_sexp_free_list(any_sexp_t sexp)
+{
+    if (ANY_SEXP_IS_CONS(sexp)) {
+            any_sexp_free_list(any_sexp_car(sexp));
+            any_sexp_free_list(any_sexp_cdr(sexp));
+    }
+
+    any_sexp_free(sexp);
 }
 
 #endif
