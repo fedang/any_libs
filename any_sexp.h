@@ -150,7 +150,7 @@ void any_sexp_writer_init(any_sexp_writer_t *writer, any_sexp_putchar_t putc, vo
 
 int any_sexp_write(any_sexp_writer_t *writer, any_sexp_t sexp);
 
-int any_sexp_fprint(any_sexp_t sexp, FILE *file);
+int any_sexp_fprint(FILE *file, any_sexp_t sexp);
 
 int any_sexp_print(any_sexp_t sexp);
 
@@ -160,9 +160,9 @@ any_sexp_t any_sexp_error(void);
 
 any_sexp_t any_sexp_nil(void);
 
-any_sexp_t any_sexp_symbol(char *symbol, size_t length);
+any_sexp_t any_sexp_symbol(const char *symbol, size_t length);
 
-any_sexp_t any_sexp_string(char *string, size_t length);
+any_sexp_t any_sexp_string(const char *string, size_t length);
 
 any_sexp_t any_sexp_number(intptr_t value);
 
@@ -175,6 +175,8 @@ any_sexp_t any_sexp_car(any_sexp_t sexp);
 any_sexp_t any_sexp_cdr(any_sexp_t sexp);
 
 any_sexp_t any_sexp_reverse(any_sexp_t sexp);
+
+any_sexp_t any_sexp_append(any_sexp_t a, any_sexp_t b);
 
 any_sexp_t any_sexp_copy(any_sexp_t sexp);
 
@@ -522,7 +524,7 @@ int any_sexp_write(any_sexp_writer_t *writer, any_sexp_t sexp)
     }
 }
 
-int any_sexp_fprint(any_sexp_t sexp, FILE *file)
+int any_sexp_fprint(FILE *file, any_sexp_t sexp)
 {
     any_sexp_writer_t writer;
     any_sexp_writer_init(&writer, (any_sexp_putchar_t)fputc, file);
@@ -531,7 +533,7 @@ int any_sexp_fprint(any_sexp_t sexp, FILE *file)
 
 int any_sexp_print(any_sexp_t sexp)
 {
-    return any_sexp_fprint(sexp, stdout);
+    return any_sexp_fprint(stdout, sexp);
 }
 
 #endif
@@ -560,7 +562,7 @@ any_sexp_t any_sexp_nil(void)
 #endif
 }
 
-any_sexp_t any_sexp_symbol(char *symbol, size_t length)
+any_sexp_t any_sexp_symbol(const char *symbol, size_t length)
 {
     if (symbol == NULL)
         return ANY_SEXP_ERROR;
@@ -583,7 +585,7 @@ any_sexp_t any_sexp_symbol(char *symbol, size_t length)
 #endif
 }
 
-any_sexp_t any_sexp_string(char *string, size_t length)
+any_sexp_t any_sexp_string(const char *string, size_t length)
 {
 
     any_sexp_t sexp = any_sexp_symbol(string, length);
@@ -683,6 +685,20 @@ any_sexp_t any_sexp_reverse(any_sexp_t sexp)
     }
 
     return prev;
+}
+
+any_sexp_t any_sexp_append(any_sexp_t a, any_sexp_t b)
+{
+    if (ANY_SEXP_IS_NIL(a))
+        return b;
+
+    if (!ANY_SEXP_IS_CONS(a))
+        return ANY_SEXP_ERROR;
+
+    any_sexp_t tail = any_sexp_append(any_sexp_cdr(a), b);
+    return ANY_SEXP_IS_ERROR(tail)
+         ? ANY_SEXP_ERROR
+         : any_sexp_cons(any_sexp_car(a), tail);
 }
 
 any_sexp_t any_sexp_copy(any_sexp_t sexp)

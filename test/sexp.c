@@ -32,7 +32,14 @@ int main()
 
     any_sexp_t pair = any_sexp_cons(any_sexp_number(1), any_sexp_number(2));
     any_sexp_print(pair);
-    any_sexp_free_list(pair);
+    putchar('\n');
+
+    any_sexp_t ap = any_sexp_append(any_sexp_cons(any_sexp_number(3), ANY_SEXP_NIL),
+                                    any_sexp_cons(pair, ANY_SEXP_NIL));
+
+    any_sexp_print(ap);
+    putchar('\n');
+    any_sexp_free_list(ap);
 
     //printf("%zu\n", sizeof(any_sexp_t));
 
