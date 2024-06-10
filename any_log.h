@@ -585,7 +585,7 @@ void any_log_value(any_log_level_t level, const char *module,
                 case 'x':
                 case 'u': {
                     unsigned int value = va_arg(args, unsigned int);
-                    fprintf(any_log_stream, ANY_LOG_VALUE_HEX(key, va_arg(args, unsigned int)));
+                    fprintf(any_log_stream, ANY_LOG_VALUE_HEX(key, value));
                     break;
                 }
 
