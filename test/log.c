@@ -14,7 +14,7 @@
 #define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
 #define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
 #define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
-#define ANY_LOG_VALUE_CUSTOM(key, stream, formatter, value) \
+#define ANY_LOG_VALUE_GENERIC(key, stream, formatter, value) \
     do { \
         fprintf(stream, "\"%s\": ", key); \
         formatter(stream, value); \
