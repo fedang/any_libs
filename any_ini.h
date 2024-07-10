@@ -22,6 +22,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 // String parser (provided by any_ini_t)
 
@@ -410,7 +411,6 @@ static void any_ini_stream_skip(any_ini_stream_t *ini, bool comment)
         ini->cursor++;
     }
 }
-
 
 static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
 {

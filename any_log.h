@@ -398,7 +398,7 @@ const char **any_log_colors = any_log_colors_default;
 #define ANY_LOG_PANIC_COLOR "\x1b[1;91m"
 #endif
 #ifndef ANY_LOG_ERROR_COLOR
-#define ANY_LOG_ERROR_COLOR "\x1b[31m"
+#define ANY_LOG_ERROR_COLOR "\x1b[1;31m"
 #endif
 #ifndef ANY_LOG_WARN_COLOR
 #define ANY_LOG_WARN_COLOR "\x1b[1;33m"
