@@ -424,7 +424,10 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
             // Copy current buffer and refill
             case '\0':
                 tmp = ANY_INI_REALLOC(value, size + ini->cursor - start);
-                if (!tmp) return value;
+                if (!tmp) {
+                    value[size - 1] = 0;
+                    return value;
+                }
 
                 size += any_ini_copy(tmp + size, ini->buffer + start, ini->cursor - start);
                 value = tmp;
@@ -469,8 +472,11 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
         }
     }
 
-    tmp = ANY_INI_REALLOC(value, size + ini->cursor - start);
-    if (!tmp) return value;
+    tmp = ANY_INI_REALLOC(value, size + ini->cursor - start + 1);
+    if (!tmp) {
+        value[size - 1] = 0;
+        return value;
+    }
 
     size += any_ini_copy(tmp + size, ini->buffer + start, ini->cursor - start);
     size = any_ini_trim(tmp, 0, size);
