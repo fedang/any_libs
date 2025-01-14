@@ -1,4 +1,4 @@
-// any_log
+// any_log v0.1.0
 //
 // A single-file library that provides a simple and somewhat opinionated
 // interface for logging and structured logging.
