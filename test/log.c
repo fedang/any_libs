@@ -1,5 +1,6 @@
 #include <stdbool.h>
 
+#define ANY_LOG_LOCKING
 #define ANY_LOG_IMPLEMENT
 #define ANY_LOG_MODULE "test"
 
@@ -21,6 +22,7 @@
     } while (false)
 #define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
 #include "any_log.h"
+
 
 struct pair {
     const char *s1, *s2;

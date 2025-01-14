@@ -52,7 +52,7 @@ typedef enum {
 } any_log_level_t;
 
 // The value of ANY_LOG_MODULE is used to indicate the current module.
-// By default it is defined as __FILE__, so that it will coincide with the
+// By default it is defined as __FILE__, which should expand to the
 // source file path (relative to the compiler cwd).
 //
 // You can customize ANY_LOG_MODULE before including the header by simply
@@ -78,7 +78,10 @@ typedef enum {
 // (see ANY_LOG_EXIT, ANY_LOG_PANIC_BEFORE and ANY_LOG_PANIC_AFTER).
 //
 // NOTE: log_panic will always terminate the program and should be used only
-//       for non recoverable situations! For normal errors just use log_error
+//       for non recoverable situations! For normal errors just use log_error.
+//
+//       The reason log_panic was made with a different interface compared to
+//       the other logging functions was to mark it as noreturn.
 //
 #define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
@@ -223,6 +226,47 @@ typedef void (*any_log_formatter_t)(FILE *stream, ANY_LOG_VALUE_GENERIC_TYPE val
 #define ANY_LOG_ATTRIBUTE(...)
 #endif
 
+#ifndef ANY_LOG_NORETURN
+#define ANY_LOG_NORETURN ANY_LOG_ATTRIBUTE(noreturn)
+#endif
+
+// In a multithreaded application you may encounter interleaved writes when
+// different threads try to log at the same time.
+// Stream locking can be used to prevent such problems.
+//
+// The macro ANY_LOG_FLOCK is called before any use of fprintf and should
+// lock the logging stream for the current thread, while ANY_LOG_FUNLOCK
+// will be called at the end of the writes to unlock it.
+//
+// You can define the macro ANY_LOG_LOCKING to use the default functions
+// for your platform (Windows and POSIX are supported).
+//
+#ifdef ANY_LOG_LOCKING
+
+// If _WIN32 is defined use _lock_file Windows api, otherwise
+// default to the POSIX api by using flockfile(3).
+//
+#ifndef ANY_LOG_FLOCK
+#ifdef _WIN32
+#define ANY_LOG_FLOCK(stream)   _lock_file(stream)
+#define ANY_LOG_FUNLOCK(stream) _unlock_file(stream)
+#else
+#define ANY_LOG_FLOCK(stream)   flockfile(stream)
+#define ANY_LOG_FUNLOCK(stream) funlockfile(stream)
+#endif
+#endif
+
+#else
+
+// Disable file locking if the macros are not defined.
+//
+#ifndef ANY_LOG_FLOCK
+#define ANY_LOG_FLOCK(...)
+#define ANY_LOG_FUNLOCK(...)
+#endif
+
+#endif
+
 // All log functions will output to the file stream specified by any_log_stream.
 //
 // You should always set this global to a valid stream (eg in main) before
@@ -304,7 +348,7 @@ ANY_LOG_ATTRIBUTE(nonnull(4))
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...);
 
-ANY_LOG_ATTRIBUTE(noreturn)
+ANY_LOG_NORETURN
 ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
 ANY_LOG_ATTRIBUTE(nonnull(1, 4))
 void any_log_panic(const char *file, int line, const char *module,
@@ -456,6 +500,8 @@ void any_log_format(any_log_level_t level, const char *module,
     if (level > any_log_level)
         return;
 
+    ANY_LOG_FLOCK(any_log_stream);
+
     fprintf(any_log_stream, ANY_LOG_FORMAT_BEFORE(level, module, func));
 
     va_list args;
@@ -464,6 +510,8 @@ void any_log_format(any_log_level_t level, const char *module,
     va_end(args);
 
     fprintf(any_log_stream, ANY_LOG_FORMAT_AFTER(level, module, func));
+
+    ANY_LOG_FUNLOCK(any_log_stream);
 
     // NOTE: Suppress compiler warning if the user customizes the format string
     //       and doesn't use these values in it
@@ -557,6 +605,8 @@ void any_log_value(any_log_level_t level, const char *module,
     if (level > any_log_level)
         return;
 
+    ANY_LOG_FLOCK(any_log_stream);
+
     fprintf(any_log_stream, ANY_LOG_VALUE_BEFORE(level, module, func, message));
 
     va_list args;
@@ -640,6 +690,8 @@ tdefault:
     va_end(args);
     fprintf(any_log_stream, ANY_LOG_VALUE_AFTER(level, module, func, message));
 
+    ANY_LOG_FUNLOCK(any_log_stream);
+
     (void)module;
     (void)func;
     (void)message;
@@ -676,6 +728,8 @@ tdefault:
 void any_log_panic(const char *file, int line, const char *module,
                    const char *func, const char *format, ...)
 {
+    ANY_LOG_FLOCK(any_log_stream);
+
     fprintf(any_log_stream, ANY_LOG_PANIC_BEFORE(file, line, module, func));
 
     va_list args;
@@ -684,6 +738,8 @@ void any_log_panic(const char *file, int line, const char *module,
     va_end(args);
 
     fprintf(any_log_stream, ANY_LOG_PANIC_AFTER(file, line, module, func));
+
+    ANY_LOG_FUNLOCK(any_log_stream);
 
     (void)module;
     (void)func;
