@@ -220,16 +220,6 @@ typedef void (*any_log_formatter_t)(FILE *stream, ANY_LOG_VALUE_GENERIC_TYPE val
 
 #endif
 
-#ifdef __GNUC__
-#define ANY_LOG_ATTRIBUTE(...) __attribute__((__VA_ARGS__))
-#else
-#define ANY_LOG_ATTRIBUTE(...)
-#endif
-
-#ifndef ANY_LOG_NORETURN
-#define ANY_LOG_NORETURN ANY_LOG_ATTRIBUTE(noreturn)
-#endif
-
 // In a multithreaded application you may encounter interleaved writes when
 // different threads try to log at the same time.
 // Stream locking can be used to prevent such problems.
@@ -257,6 +247,18 @@ typedef void (*any_log_formatter_t)(FILE *stream, ANY_LOG_VALUE_GENERIC_TYPE val
 #define ANY_LOG_FUNLOCK(...)
 #endif
 
+#endif
+
+// This is a wrapper for GCC-style attributes, used by the functions below.
+//
+#ifdef __GNUC__
+#define ANY_LOG_ATTRIBUTE(...) __attribute__((__VA_ARGS__))
+#else
+#define ANY_LOG_ATTRIBUTE(...)
+#endif
+
+#ifndef ANY_LOG_NORETURN
+#define ANY_LOG_NORETURN ANY_LOG_ATTRIBUTE(noreturn)
 #endif
 
 // All log functions will output to the file streams specified by any_log_streams,
@@ -304,7 +306,7 @@ any_log_level_t any_log_level_from_string(const char *string);
 // The default format macros for all logging function uses the global
 // any_log_color to get the color sequence to use when printing the logs.
 //
-// By default this global points to any_log_colors_default, but you can
+// By default this global points to any_log_colors_enabled, but you can
 // set it to any_log_colors_disabled or to a custom array of your choice.
 //
 // The array you give should have length ANY_LOG_ALL + 3 and this organization
@@ -326,7 +328,7 @@ extern const char **any_log_colors;
 // See ANY_LOG_[level]_COLOR, ANY_LOG_RESET_COLOR, ANY_LOG_MODULE_COLOR and
 // ANY_LOG_FUNC_COLOR in the implementation.
 //
-extern const char *any_log_colors_default[ANY_LOG_ALL + 3];
+extern const char *any_log_colors_enabled[ANY_LOG_ALL + 3];
 
 // This array contains empty strings.
 extern const char *any_log_colors_disabled[ANY_LOG_ALL + 3];
@@ -430,7 +432,15 @@ any_log_level_t any_log_level_from_string(const char *string)
 // interface for setting the colors. If you decide to change the default
 // log format macros, feel free to ignore all this variables.
 //
-const char **any_log_colors = any_log_colors_default;
+// If the macro ANY_LOG_NO_COLOR is defined, any_log_colors_disabled
+// will be used instead of any_log_colors_enabled.
+//
+const char **any_log_colors =
+#ifdef ANY_LOG_NO_COLOR
+    any_log_colors_disabled;
+#else
+    any_log_colors_enabled;
+#endif
 
 // Log colors indexed by log level, with the addition of special colors
 // for func, module and reset sequence.
@@ -463,7 +473,7 @@ const char **any_log_colors = any_log_colors_default;
 #define ANY_LOG_FUNC_COLOR "\x1b[1m"
 #endif
 
-const char *any_log_colors_default[ANY_LOG_ALL + 3] = {
+const char *any_log_colors_enabled[ANY_LOG_ALL + 3] = {
     ANY_LOG_PANIC_COLOR,
     ANY_LOG_ERROR_COLOR,
     ANY_LOG_WARN_COLOR,

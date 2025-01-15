@@ -42,7 +42,7 @@ void pairs_format(FILE *stream, struct pair *pairs)
 
 int main()
 {
-    any_log_init(ANY_LOG_DEBUG, stdout);
+    any_log_init(ANY_LOG_TRACE, stdout);
 
     FILE *streams[ANY_LOG_ALL] = {
         stderr, //ANY_LOG_PANIC
