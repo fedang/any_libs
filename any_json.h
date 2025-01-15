@@ -39,6 +39,7 @@ bool any_json_write_null(any_json_write_t *json);
 #ifdef ANY_JSON_IMPLEMENT
 
 #include <string.h>
+#include <ctype.h>
 
 #ifndef ANY_JSON_INDENT
 #define ANY_JSON_INDENT 4
@@ -108,17 +109,69 @@ bool any_json_write_member(any_json_write_t *json, const char *key)
     }
 }
 
+#ifndef ANY_JSON_BUFFER_SIZE
+#define ANY_JSON_BUFFER_SIZE 512
+#endif
+
 bool any_json_write_string(any_json_write_t *json, const char *string)
 {
     json->fputs("\"", json->stream);
-    json->fputs(string, json->stream);
+
+    char buffer[ANY_JSON_BUFFER_SIZE] = { 0 };
+    size_t t = 0;
+
+    for (size_t i = 0; string[i] != '\0'; ++i) {
+        if (t + 6 >= sizeof(buffer)) {
+            buffer[t] = '\0';
+            json->fputs(buffer, json->stream);
+            t = 0;
+        }
+
+        if (iscntrl(string[i])) {
+            buffer[t++] = '\\';
+
+            switch (string[i]) {
+                case '\b':
+                    buffer[t++] = 'b';
+                    break;
+                case '\f':
+                    buffer[t++] = 'f';
+                    break;
+                case '\n':
+                    buffer[t++] = 'n';
+                    break;
+                case '\r':
+                    buffer[t++] = 'r';
+                    break;
+                case '\t':
+                    buffer[t++] = 't';
+                    break;
+                default:
+                    t += sprintf(buffer + t, "u%04x", string[i]);
+                    break;
+            }
+        } else {
+            if (string[i] == '"' || string[i] == '\\' || string[i] == '/')
+                buffer[t++] = '\\';
+
+            buffer[t++] = string[i];
+        }
+    }
+
+    buffer[t] = '\0';
+    json->fputs(buffer, json->stream);
+
     json->fputs("\"", json->stream);
 }
 
+#ifndef ANY_JSON_NUMBER_FORMAT
+#define ANY_JSON_NUMBER_FORMAT "%.17g"
+#endif
+
 bool any_json_write_number(any_json_write_t *json, double value)
 {
-    char buffer[1080] = { 0 };
-    snprintf(buffer, sizeof(buffer), "%lf", value);
+    char buffer[ANY_JSON_BUFFER_SIZE] = { 0 };
+    snprintf(buffer, sizeof(buffer), ANY_JSON_NUMBER_FORMAT, value);
     json->fputs(buffer, json->stream);
 }
 

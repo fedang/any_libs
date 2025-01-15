@@ -55,9 +55,9 @@ void test_write(bool pretty)
 
     const char *props[][2] = {
         { "name", "test" },
-        { "scope", "local" },
-        { "project", "any_json" },
-        { "author", "me" },
+        { "scope", "local \x1f" },
+        { "project", "any_json とてもクールで縮みません" },
+        { "author", "me \"trying\" hard" },
         { 0 },
     };
 
@@ -82,10 +82,10 @@ void test_write(bool pretty)
         any_json_write_open_array(&json);
         {
             any_json_write_member(&json, NULL);
-            any_json_write_string(&json, "nested");
+            any_json_write_string(&json, "nested \\ \" /");
 
             any_json_write_member(&json, NULL);
-            any_json_write_string(&json, "array");
+            any_json_write_string(&json, "array \f \b \n \r \t o");
         }
         any_json_write_close_array(&json);
     }

@@ -1,6 +1,6 @@
 #include <stdbool.h>
 
-#define ANY_LOG_LOCKING
+//#define ANY_LOG_LOCKING
 #define ANY_LOG_IMPLEMENT
 #define ANY_LOG_MODULE "test"
 
