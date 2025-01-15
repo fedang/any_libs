@@ -7,6 +7,7 @@ single-file C libraries released under MIT license
 ## [any\_log](./any_log.h)
 
 A simple log libary that supports normal and structured logging.
+Current version: `v0.1.0`
 
 ## [any\_hash](./any_hash.h)
 
@@ -19,6 +20,10 @@ A library that provides a simple ini parser.
 ## [any\_sexp](./any_sexp.h)
 
 A library for reading, handling and printing s-expressions.
+
+## [any\_json](./any_json.h)
+
+A library for reading (TODO) and writing JSON.
 
 ## ...
 
