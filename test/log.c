@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 
 //#define ANY_LOG_LOCKING
 #define ANY_LOG_IMPLEMENT
@@ -25,7 +26,7 @@
 #define ANY_LOG_VALUE_PTR(stream, key, value) \
     do { \
         if (value == NULL) fprintf(stream, "\"%s\": none", key); \
-        else fprintf(stream, "\"%s\": %p", key, value); \
+        else fprintf(stream, "\"%s\": %lu", key, (uintptr_t)value); \
     } while (false)
 
 #define ANY_LOG_VALUE_DOUBLE(stream, key, value) \
@@ -128,6 +129,7 @@ int main()
                    "p:window", NULL,
                    "f:scale", 1.23,
                    "b:hidden", true,
+                   "p:ptr", malloc(0),
                    "g:pairs", ANY_LOG_FORMATTER(pairs_format), pairs,
                    "appname", "nice app");
 

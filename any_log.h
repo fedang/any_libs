@@ -21,22 +21,23 @@
 #define ANY_LOG_INCLUDE
 
 #include <stdio.h>
+#include <stdbool.h>
 
 // These values represent the decreasing urgency of a log invocation.
 //
-// panic: indicates a fatal error and using it will result in
-//        the program termination (see any_log_panic)
+// - panic: indicates a fatal error and using it will result in
+//          the program termination (see any_log_panic)
 //
-// error: indicates a (non-fatal) error
+// - error: indicates a (non-fatal) error
 //
-// warn: indicates a warning
+// - warn: indicates a warning
 //
-// info: indicates an information (potentially useful to the user)
+// - info: indicates an information (potentially useful to the user)
 //
-// debug: indicates debugging information
+// - debug: indicates debugging information
 //
-// trace: indicates verbose debugging information and can be completely
-//        disabled by defining ANY_LOG_NO_TRACE before including
+// - trace: indicates verbose debugging information and can be completely
+//          disabled by defining ANY_LOG_NO_TRACE before including
 //
 // NOTE: The value ANY_LOG_ALL is not an actual level and it is used as
 //       a sentinel to indicate the last value of any_log_level_t
@@ -77,11 +78,11 @@ typedef enum {
 // You can change the format string and exit function in the implementation
 // (see ANY_LOG_EXIT, ANY_LOG_PANIC_BEFORE and ANY_LOG_PANIC_AFTER).
 //
+// This function was made with a different interface compared to the other
+// logging functions in order to be marked as *noreturn*.
+//
 // NOTE: log_panic will always terminate the program and should be used only
 //       for non recoverable situations! For normal errors just use log_error.
-//
-//       This function was made with a different interface compared to the
-//       other logging functions in order to be marked as *noreturn*.
 //
 #define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
@@ -168,22 +169,42 @@ typedef enum {
 //
 // In the implementation you can customize the format of every key-value pair
 // and of the message. This is useful if you want to adhere to a structured
-// logging format like JSON. For example
+// logging format. An example implementation for JSON follows:
 //
 //    #define ANY_LOG_IMPLEMENT
-//    #define ANY_LOG_VALUE_BEFORE(level, module, func, message)
-//    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ",
-//    module, func, any_log_level_strings[level], message
-//
-//    #define ANY_LOG_VALUE_BOOL(key, value) "\"%s\": %s", key, (value ? "true" : "false")
-//    #define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
-//    #define ANY_LOG_VALUE_HEX(key, value) "\"%s\": %u", key, value
-//    #define ANY_LOG_VALUE_LONG(key, value) "\"%s\": %ld", key, value
-//    #define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
-//    #define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
-//    #define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
-//    #define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
 //    #define ANY_LOG_NO_GENERIC
+//
+//    #define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message)
+//        fprintf(stream, "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ",
+//                module, func, any_log_level_strings[level], message)
+//
+//    #define ANY_LOG_VALUE_BOOL(stream, key, value)
+//        fprintf(stream, "\"%s\": %s", key, value ? "true" : "false")
+//
+//    #define ANY_LOG_VALUE_INT(stream, key, value)
+//        fprintf(stream, "\"%s\": %d", key, value)
+//
+//    #define ANY_LOG_VALUE_HEX(stream, key, value)
+//        fprintf(stream, "\"%s\": %u", key, value)
+//
+//    #define ANY_LOG_VALUE_LONG(stream, key, value)
+//        fprintf(stream, "\"%s\": %ld", key, value)
+//
+//    #define ANY_LOG_VALUE_PTR(stream, key, value)
+//        do {
+//            if (value == NULL) fprintf(stream, "\"%s\": none", key);
+//            else fprintf(stream, "\"%s\": %lu", key, (uintptr_t)value);
+//        } while (false)
+//
+//    #define ANY_LOG_VALUE_DOUBLE(stream, key, value)
+//        fprintf(stream, "\"%s\": %lf", key, value)
+//
+//    #define ANY_LOG_VALUE_STRING(stream, key, value)
+//        fprintf(stream, "\"%s \": \"%s\"", key, value)
+//
+//    #define ANY_LOG_VALUE_AFTER(stream, level, module, func, message)
+//        fprintf(stream, "}\n")
+//
 //    #include "any_log.h"
 //
 // As with log_trace and log_debug, log_value_trace and log_value_debug can be
@@ -309,12 +330,14 @@ any_log_level_t any_log_level_from_string(const char *string);
 // By default this global points to any_log_colors_enabled, but you can
 // set it to any_log_colors_disabled or to a custom array of your choice.
 //
-// The array you give should have length ANY_LOG_ALL + 3 and this organization
+// The array you give should have length ANY_LOG_ALL + 3 and the following layout
 //
-// from ANY_LOG_PANIC to ANY_LOG_TRACE: the colors indexed by log levels
-// ANY_LOG_ALL: the color reset sequence
-// ANY_LOG_ALL + 1: the color for the module
-// ANY_LOG_ALL + 2: the color for the function
+// - from ANY_LOG_PANIC to ANY_LOG_TRACE: the colors indexed by log levels
+// - ANY_LOG_ALL: the color reset sequence
+// - ANY_LOG_ALL + 1: the color for the module
+// - ANY_LOG_ALL + 2: the color for the function
+//
+// If the macro ANY_LOG_NO_COLOR by default colors will be disabled.
 //
 // NOTE: If you changed the default format in the implementation
 //       (by redefining ANY_LOG_FORMAT_*, ANY_LOG_VALUE_* and ANY_LOG_PANIC_*),
@@ -697,7 +720,7 @@ void any_log_value(any_log_level_t level, const char *module,
                     goto tdefault;
             }
         } else {
-tdefault:
+tdefault:;
             ANY_LOG_VALUE_DEFAULT_TYPE value = va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE);
             ANY_LOG_VALUE_DEFAULT(stream, key, value);
         }
