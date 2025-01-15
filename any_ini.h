@@ -282,7 +282,7 @@ static bool any_ini_skip_pair(any_ini_t *ini, bool key)
 #endif
             if (ini->cursor != 0 && isspace(ini->source[ini->cursor - 1]))
                 return false;
-            // fallthrough
+            /* fall through */
 #endif
 
         default:
@@ -396,7 +396,7 @@ static void any_ini_stream_skip(any_ini_stream_t *ini, bool comment)
                     return;
 
                 any_ini_stream_skip_line(ini);
-                // fallthrough
+                /* fall through */
 
             // Discard the current line
             case '\n':
@@ -456,7 +456,7 @@ static char *any_ini_stream_until(any_ini_stream_t *ini, size_t start, char c)
                     done = true;
                     break;
                 }
-                // fallthrough
+                /* fall through */
 #endif
             default:
                 if (ini->buffer[ini->cursor] == c) {

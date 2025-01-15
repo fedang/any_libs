@@ -288,7 +288,7 @@ static void any_sexp_reader_skip(any_sexp_reader_t *reader)
     }
 }
 
-static char any_sexp_reader_string_getc(any_sexp_reader_string_t *string)
+static int any_sexp_reader_string_getc(any_sexp_reader_string_t *string)
 {
     return string->cursor < string->length
          ? string->source[string->cursor++]
