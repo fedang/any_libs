@@ -415,7 +415,7 @@ const char *any_log_level_strings[ANY_LOG_ALL] = {
 const char *any_log_level_to_string(any_log_level_t level)
 {
     return level >= ANY_LOG_PANIC && level <= ANY_LOG_TRACE
-        ? any_log_level_strings[level] : "";
+         ? any_log_level_strings[level] : NULL;
 }
 
 any_log_level_t any_log_level_from_string(const char *string)
@@ -491,14 +491,16 @@ const char *any_log_colors_disabled[ANY_LOG_ALL + 3] = {
 
 // Format for any_log_format (used at the start)
 #ifndef ANY_LOG_FORMAT_BEFORE
-#define ANY_LOG_FORMAT_BEFORE(level, module, func) \
-    "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
-    func, any_log_colors[ANY_LOG_ALL], any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL]
+#define ANY_LOG_FORMAT_BEFORE(stream, level, module, func) \
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], \
+            any_log_colors[ANY_LOG_ALL + 2], func, any_log_colors[ANY_LOG_ALL], \
+            any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL])
 #endif
 
 // Format for any_log_format (used at the end)
 #ifndef ANY_LOG_FORMAT_AFTER
-#define ANY_LOG_FORMAT_AFTER(level, module, func) "\n"
+#define ANY_LOG_FORMAT_AFTER(stream, level, module, func) \
+    fprintf(stream, "\n")
 #endif
 
 void any_log_format(any_log_level_t level, const char *module,
@@ -510,14 +512,14 @@ void any_log_format(any_log_level_t level, const char *module,
     FILE *stream = any_log_streams[level];
     ANY_LOG_FLOCK(stream);
 
-    fprintf(stream, ANY_LOG_FORMAT_BEFORE(level, module, func));
+    ANY_LOG_FORMAT_BEFORE(stream, level, module, func);
 
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);
     va_end(args);
 
-    fprintf(stream, ANY_LOG_FORMAT_AFTER(level, module, func));
+    ANY_LOG_FORMAT_AFTER(stream, level, module, func);
 
     ANY_LOG_FUNLOCK(stream);
 
@@ -536,58 +538,67 @@ void any_log_format(any_log_level_t level, const char *module,
 
 // Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
-#define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
-    "[%s%s%s %s%s%s] %s%s%s: %s [", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
-    func, any_log_colors[ANY_LOG_ALL], any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL], message
+#define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message) \
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: %s [", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], \
+            any_log_colors[ANY_LOG_ALL + 2], func, any_log_colors[ANY_LOG_ALL], \
+            any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL], message)
 #endif
 
 // Format for any_log_value (used at the end)
 #ifndef ANY_LOG_VALUE_AFTER
-#define ANY_LOG_VALUE_AFTER(level, module, func, message) "]\n"
+#define ANY_LOG_VALUE_AFTER(stream, level, module, func, message) \
+    fprintf(stream, "]\n")
 #endif
 
 // Format for pairs with a bool value
 //
 // NOTE: C automatically promotes boolean types to int
 #ifndef ANY_LOG_VALUE_BOOL
-#define ANY_LOG_VALUE_BOOL(key, value) "%s=%s", key, (value ? "true" : "false")
+#define ANY_LOG_VALUE_BOOL(stream, key, value) \
+    fprintf(stream, "%s=%s", key, value ? "true" : "false")
 #endif
 
 // Format for pairs with an int value
 #ifndef ANY_LOG_VALUE_INT
-#define ANY_LOG_VALUE_INT(key, value) "%s=%d", key, value
+#define ANY_LOG_VALUE_INT(stream, key, value) \
+    fprintf(stream, "%s=%d", key, value)
 #endif
 
-// Format for pairs with an unsinged int value (hex by default)
+// Format for pairs with an unsigned int value (hex by default)
 #ifndef ANY_LOG_VALUE_HEX
-#define ANY_LOG_VALUE_HEX(key, value) "%s=%#x", key, value
+#define ANY_LOG_VALUE_HEX(stream, key, value) \
+    fprintf(stream, "%s=%#x", key, value)
 #endif
 
 // Format for pairs with a long int value
 #ifndef ANY_LOG_VALUE_LONG
-#define ANY_LOG_VALUE_LONG(key, value) "%s=%ld", key, value
+#define ANY_LOG_VALUE_LONG(stream, key, value) \
+    fprintf(stream, "%s=%ld", key, value)
 #endif
 
-// Format for pairs with a pointer value
+// Format for pairs with a pointer value (void *)
 #ifndef ANY_LOG_VALUE_PTR
-#define ANY_LOG_VALUE_PTR(key, value) "%s=%p", key, value
+#define ANY_LOG_VALUE_PTR(stream, key, value) \
+    fprintf(stream, "%s=%p", key, value)
 #endif
 
 // Format for pairs with a double value
 #ifndef ANY_LOG_VALUE_DOUBLE
-#define ANY_LOG_VALUE_DOUBLE(key, value) "%s=%lf", key, value
+#define ANY_LOG_VALUE_DOUBLE(stream, key, value) \
+    fprintf(stream, "%s=%lf", key, value)
 #endif
 
-// Format for pairs with a string value
+// Format for pairs with a string value (char *)
 #ifndef ANY_LOG_VALUE_STRING
-#define ANY_LOG_VALUE_STRING(key, value) "%s=\"%s\"", key, value
+#define ANY_LOG_VALUE_STRING(stream, key, value) \
+    fprintf(stream, "%s=\"%s\"", key, value)
 #endif
 
 #ifndef ANY_LOG_NO_GENERIC
 
 // Format custom types with the given formatter function
 #ifndef ANY_LOG_VALUE_GENERIC
-#define ANY_LOG_VALUE_GENERIC(key, stream, formatter, value) \
+#define ANY_LOG_VALUE_GENERIC(stream, key, value, formatter) \
     do { \
         fprintf(stream, "%s=", key); \
         formatter(stream, value); \
@@ -596,9 +607,11 @@ void any_log_format(any_log_level_t level, const char *module,
 
 #endif
 
-// The default is to use string
+// By default values will be interpreted as strings.
+// Define ANY_LOG_VALUE_DEFAULT and ANY_LOG_VALUE_DEFAULT_TYPE to change this.
+//
 #ifndef ANY_LOG_VALUE_DEFAULT
-#define ANY_LOG_VALUE_DEFAULT(key, value) ANY_LOG_VALUE_STRING(key, value)
+#define ANY_LOG_VALUE_DEFAULT(stream, key, value) ANY_LOG_VALUE_STRING(stream, key, value)
 #define ANY_LOG_VALUE_DEFAULT_TYPE char *
 #endif
 
@@ -616,7 +629,7 @@ void any_log_value(any_log_level_t level, const char *module,
     FILE *stream = any_log_streams[level];
     ANY_LOG_FLOCK(stream);
 
-    fprintf(stream, ANY_LOG_VALUE_BEFORE(level, module, func, message));
+    ANY_LOG_VALUE_BEFORE(stream, level, module, func, message);
 
     va_list args;
     va_start(args, message);
@@ -630,45 +643,45 @@ void any_log_value(any_log_level_t level, const char *module,
             switch (tolower(key[-2])) {
                 case 'b': {
                     int value = va_arg(args, int);
-                    fprintf(stream, ANY_LOG_VALUE_BOOL(key, value));
+                    ANY_LOG_VALUE_BOOL(stream, key, value);
                     break;
                 }
 
                 case 'd':
                 case 'i': {
                     int value = va_arg(args, int);
-                    fprintf(stream, ANY_LOG_VALUE_INT(key, value));
+                    ANY_LOG_VALUE_INT(stream, key, value);
                     break;
                 }
 
                 case 'x':
                 case 'u': {
                     unsigned int value = va_arg(args, unsigned int);
-                    fprintf(stream, ANY_LOG_VALUE_HEX(key, value));
+                    ANY_LOG_VALUE_HEX(stream, key, value);
                     break;
                 }
 
                 case 'l': {
                     long int value = va_arg(args, long int);
-                    fprintf(stream, ANY_LOG_VALUE_LONG(key, value));
+                    ANY_LOG_VALUE_LONG(stream, key, value);
                     break;
                 }
 
                 case 'p': {
                     void *value = va_arg(args, void *);
-                    fprintf(stream, ANY_LOG_VALUE_PTR(key, value));
+                    ANY_LOG_VALUE_PTR(stream, key, value);
                     break;
                 }
 
                 case 'f': {
                     double value = va_arg(args, double);
-                    fprintf(stream, ANY_LOG_VALUE_DOUBLE(key, value));
+                    ANY_LOG_VALUE_DOUBLE(stream, key, value);
                     break;
                 }
 
                 case 's': {
                     char *value = va_arg(args, char *);
-                    fprintf(stream, ANY_LOG_VALUE_STRING(key, value));
+                    ANY_LOG_VALUE_STRING(stream, key, value);
                     break;
                 }
 
@@ -676,7 +689,7 @@ void any_log_value(any_log_level_t level, const char *module,
                 case 'g': {
                     any_log_formatter_t formatter = va_arg(args, any_log_formatter_t);
                     ANY_LOG_VALUE_GENERIC_TYPE value = va_arg(args, ANY_LOG_VALUE_GENERIC_TYPE);
-                    ANY_LOG_VALUE_GENERIC(key, stream, formatter, value);
+                    ANY_LOG_VALUE_GENERIC(stream, key, value, formatter);
                     break;
                 }
 #endif
@@ -686,7 +699,7 @@ void any_log_value(any_log_level_t level, const char *module,
         } else {
 tdefault:
             ANY_LOG_VALUE_DEFAULT_TYPE value = va_arg(args, ANY_LOG_VALUE_DEFAULT_TYPE);
-            fprintf(stream, ANY_LOG_VALUE_DEFAULT(key, value));
+            ANY_LOG_VALUE_DEFAULT(stream, key, value);
         }
 
         key = va_arg(args, char *);
@@ -697,8 +710,8 @@ tdefault:
     }
 
     va_end(args);
-    fprintf(stream, ANY_LOG_VALUE_AFTER(level, module, func, message));
 
+    ANY_LOG_VALUE_AFTER(stream, level, module, func, message);
     ANY_LOG_FUNLOCK(stream);
 
     (void)module;
@@ -719,16 +732,17 @@ tdefault:
 
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_BEFORE
-#define ANY_LOG_PANIC_BEFORE(file, line, module, func) \
-    "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_ALL + 2], \
-    func, any_log_colors[ANY_LOG_ALL], any_log_colors[ANY_LOG_PANIC], any_log_level_strings[ANY_LOG_PANIC], any_log_colors[ANY_LOG_ALL]
+#define ANY_LOG_PANIC_BEFORE(stream, file, line, module, func) \
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], \
+            any_log_colors[ANY_LOG_ALL + 2], func, any_log_colors[ANY_LOG_ALL], \
+            any_log_colors[ANY_LOG_PANIC], any_log_level_strings[ANY_LOG_PANIC], any_log_colors[ANY_LOG_ALL])
 #endif
 
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_AFTER
-#define ANY_LOG_PANIC_AFTER(file, line, module, func) \
-    "\n%spanic was invoked from%s %s:%d (%s%s%s)\n", any_log_colors[ANY_LOG_PANIC], any_log_colors[ANY_LOG_ALL], \
-    file, line, any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL]
+#define ANY_LOG_PANIC_AFTER(stream, file, line, module, func) \
+    fprintf(stream, "\n%spanic was invoked from%s %s:%d (%s%s%s)\n", any_log_colors[ANY_LOG_PANIC], \
+            any_log_colors[ANY_LOG_ALL], file, line, any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL])
 #endif
 
 // NOTE: This function *exceptionally* gets more location information
@@ -740,14 +754,14 @@ void any_log_panic(const char *file, int line, const char *module,
     FILE *stream = any_log_streams[ANY_LOG_PANIC];
     ANY_LOG_FLOCK(stream);
 
-    fprintf(stream, ANY_LOG_PANIC_BEFORE(file, line, module, func));
+    ANY_LOG_PANIC_BEFORE(stream, file, line, module, func);
 
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);
     va_end(args);
 
-    fprintf(stream, ANY_LOG_PANIC_AFTER(file, line, module, func));
+    ANY_LOG_PANIC_AFTER(stream, file, line, module, func);
 
     ANY_LOG_FUNLOCK(stream);
 

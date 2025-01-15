@@ -4,23 +4,46 @@
 #define ANY_LOG_IMPLEMENT
 #define ANY_LOG_MODULE "test"
 
-#define ANY_LOG_VALUE_BEFORE(level, module, func, message) \
-    "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ", \
-     module, func, any_log_level_strings[level], message
+// Print in a JSON like way
 
-#define ANY_LOG_VALUE_BOOL(key, value) "\"%s\": %s", key, (value ? "true" : "false")
-#define ANY_LOG_VALUE_INT(key, value) "\"%s\": %d", key, value
-#define ANY_LOG_VALUE_HEX(key, value) "\"%s\": %u", key, value
-#define ANY_LOG_VALUE_LONG(key, value) "\"%s\": %ld", key, value
-#define ANY_LOG_VALUE_PTR(key, value) "\"%s\": \"%p\"", key, value
-#define ANY_LOG_VALUE_DOUBLE(key, value) "\"%s\": %lf", key, value
-#define ANY_LOG_VALUE_STRING(key, value) "\"%s \": \"%s\"", key, value
-#define ANY_LOG_VALUE_GENERIC(key, stream, formatter, value) \
+#define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message) \
+    fprintf(stream, "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ", \
+            module, func, any_log_level_strings[level], message)
+
+#define ANY_LOG_VALUE_BOOL(stream, key, value) \
+    fprintf(stream, "\"%s\": %s", key, value ? "true" : "false")
+
+#define ANY_LOG_VALUE_INT(stream, key, value) \
+    fprintf(stream, "\"%s\": %d", key, value)
+
+#define ANY_LOG_VALUE_HEX(stream, key, value) \
+    fprintf(stream, "\"%s\": %u", key, value)
+
+#define ANY_LOG_VALUE_LONG(stream, key, value) \
+    fprintf(stream, "\"%s\": %ld", key, value)
+
+#define ANY_LOG_VALUE_PTR(stream, key, value) \
     do { \
-        fprintf(stream, "\"%s\": ", key); \
-        formatter(stream, value); \
+        if (value == NULL) fprintf(stream, "\"%s\": none", key); \
+        else fprintf(stream, "\"%s\": %p", key, value); \
     } while (false)
-#define ANY_LOG_VALUE_AFTER(level, module, func, message) "}\n"
+
+#define ANY_LOG_VALUE_DOUBLE(stream, key, value) \
+    fprintf(stream, "\"%s\": %lf", key, value)
+
+#define ANY_LOG_VALUE_STRING(stream, key, value) \
+    fprintf(stream, "\"%s \": \"%s\"", key, value)
+
+#define ANY_LOG_VALUE_GENERIC(stream, key, value, formatter) \
+    do { \
+        fprintf(stream, "\"%s\": \"", key); \
+        formatter(stream, value); \
+        fprintf(stream, "\""); \
+    } while (false)
+
+#define ANY_LOG_VALUE_AFTER(stream, level, module, func, message) \
+    fprintf(stream, "}\n")
+
 #include "any_log.h"
 
 
