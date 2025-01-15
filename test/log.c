@@ -42,7 +42,17 @@ void pairs_format(FILE *stream, struct pair *pairs)
 
 int main()
 {
-    any_log_init(stdout, ANY_LOG_DEBUG);
+    any_log_init(ANY_LOG_DEBUG, stdout);
+
+    FILE *streams[ANY_LOG_ALL] = {
+        stderr, //ANY_LOG_PANIC
+        stderr, //ANY_LOG_ERROR
+        stdout, //ANY_LOG_WARN
+        stdout, //ANY_LOG_INFO
+        stdout, //ANY_LOG_DEBUG
+        stdout, //ANY_LOG_TRACE
+    };
+    memcpy(any_log_streams, streams, sizeof(streams));
 
     // Test any_log_level_to_string
     log_trace("ANY_LOG_PANIC = %s", any_log_level_to_string(ANY_LOG_PANIC));
