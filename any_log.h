@@ -80,8 +80,8 @@ typedef enum {
 // NOTE: log_panic will always terminate the program and should be used only
 //       for non recoverable situations! For normal errors just use log_error.
 //
-//       The reason log_panic was made with a different interface compared to
-//       the other logging functions was to mark it as noreturn.
+//       This function was made with a different interface compared to the
+//       other logging functions in order to be marked as *noreturn*.
 //
 #define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
@@ -238,22 +238,14 @@ typedef void (*any_log_formatter_t)(FILE *stream, ANY_LOG_VALUE_GENERIC_TYPE val
 // lock the logging stream for the current thread, while ANY_LOG_FUNLOCK
 // will be called at the end of the writes to unlock it.
 //
-// You can define the macro ANY_LOG_LOCKING to use the default functions
-// for your platform (Windows and POSIX are supported).
+// You can define ANY_LOG_LOCKING to automatically define the aforementioned
+// macros using flockfile(3) (from POSIX 2001).
 //
 #ifdef ANY_LOG_LOCKING
 
-// If _WIN32 is defined use _lock_file Windows api, otherwise
-// default to the POSIX api by using flockfile(3).
-//
 #ifndef ANY_LOG_FLOCK
-#ifdef _WIN32
-#define ANY_LOG_FLOCK(stream)   _lock_file(stream)
-#define ANY_LOG_FUNLOCK(stream) _unlock_file(stream)
-#else
 #define ANY_LOG_FLOCK(stream)   flockfile(stream)
 #define ANY_LOG_FUNLOCK(stream) funlockfile(stream)
-#endif
 #endif
 
 #else
