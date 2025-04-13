@@ -140,7 +140,8 @@ int main()
     log_info("Hello");
     log_warn("Hello");
     log_error("Hello");
-    log_panic("Hello");
+
+    log_panic("Adios");
 
     return 0;
 }

@@ -1,4 +1,4 @@
-// any_log v0.2.0
+// any_log v0.3.0
 //
 // A single-file library that provides a simple and somewhat opinionated
 // interface for logging and structured logging.
@@ -71,6 +71,10 @@ typedef enum {
 #define ANY_LOG_FUNC __func__
 #endif
 
+#ifndef ANY_LOG_LINE
+#define ANY_LOG_LINE __LINE__
+#endif
+
 // log_panic is implemented with the function any_log_panic, which takes
 // some extra parameters compared with the other log levels. This way we can
 // include as many information as possible for identifying fatal errors.
@@ -84,7 +88,7 @@ typedef enum {
 // NOTE: log_panic will always terminate the program and should be used only
 //       for non recoverable situations! For normal errors just use log_error.
 //
-#define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_panic(...) any_log_panic(__FILE__, ANY_LOG_LINE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
 // log_[level] provide normal printf style logging.
 //
@@ -360,17 +364,17 @@ extern const char *any_log_colors_disabled[ANY_LOG_ALL + 3];
 //       See the above explanations on how to use logging.
 
 ANY_LOG_ATTRIBUTE(format(printf, 4, 5))
-ANY_LOG_ATTRIBUTE(nonnull(4))
+ANY_LOG_ATTRIBUTE(nonnull(2, 3, 4))
 void any_log_format(any_log_level_t level, const char *module,
                     const char *func, const char *format, ...);
 
-ANY_LOG_ATTRIBUTE(nonnull(4))
+ANY_LOG_ATTRIBUTE(nonnull(2, 3, 4))
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...);
 
 ANY_LOG_NORETURN
 ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
-ANY_LOG_ATTRIBUTE(nonnull(1, 4))
+ANY_LOG_ATTRIBUTE(nonnull(1, 3, 4, 5))
 void any_log_panic(const char *file, int line, const char *module,
                    const char *func, const char *format, ...);
 
@@ -643,6 +647,7 @@ void any_log_format(any_log_level_t level, const char *module,
 #define ANY_LOG_VALUE_PAIR_SEP ", "
 #endif
 
+// NOTE: This function should be called with at least one pair
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...)
 {
@@ -657,9 +662,7 @@ void any_log_value(any_log_level_t level, const char *module,
     va_list args;
     va_start(args, message);
 
-    // NOTE: This function should be called with at least one pair
     char *key = va_arg(args, char *);
-
     while (key != NULL) {
         if (key[0] != '\0' && key[1] == ANY_LOG_VALUE_TYPE_SEP) {
             key += 2;
@@ -803,7 +806,7 @@ void any_log_panic(const char *file, int line, const char *module,
 
 // MIT License
 //
-// Copyright (c) 2024 Federico Angelilli
+// Copyright (c) 2024-2025 Federico Angelilli
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
