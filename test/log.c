@@ -20,7 +20,7 @@ void print_backtrace(FILE *stream)
     backtrace_symbols_fd(buffer, nptrs, fileno(stream));
 }
 
-#define ANY_LOG_PANIC_AFTER(stream, file, line, module, func) \
+#define ANY_LOG_PANIC_AFTER(stream, file, line, context, module, func) \
     do { \
         print_backtrace(stream); \
         fprintf(stream, "%spanic was invoked from%s %s:%d (module %s%s%s)\n", \
@@ -40,7 +40,7 @@ void print_backtrace(FILE *stream)
 
 // Print in a JSON like way
 
-#define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message) \
+#define ANY_LOG_VALUE_BEFORE(stream, level, context, module, func, message) \
     fprintf(stream, "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ", \
             module, func, any_log_level_strings[level], message)
 
@@ -75,7 +75,7 @@ void print_backtrace(FILE *stream)
         fprintf(stream, "\""); \
     } while (false)
 
-#define ANY_LOG_VALUE_AFTER(stream, level, module, func, message) \
+#define ANY_LOG_VALUE_AFTER(stream, level, context, module, func, message) \
     fprintf(stream, "}\n")
 
 #include "any_log.h"
