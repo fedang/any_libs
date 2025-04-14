@@ -9,7 +9,7 @@ all: tests
 tests: $(TESTS)
 
 %: %.c
-	$(CC) -I. $< -o $@ -ggdb -std=c99 -pedantic -Wall -Wextra
+	$(CC) -I. $< -o $@ -ggdb -std=c99 -pedantic -Wall -Wextra $(CFLAGS)
 
 clean:
 	rm -rf $(TESTS)

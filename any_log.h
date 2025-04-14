@@ -1,4 +1,4 @@
-// any_log v0.3.0
+// any_log v0.3.1
 //
 // A single-file library that provides a simple and somewhat opinionated
 // interface for logging and structured logging.
@@ -328,37 +328,59 @@ const char *any_log_level_to_string(any_log_level_t level);
 ANY_LOG_ATTRIBUTE(pure)
 any_log_level_t any_log_level_from_string(const char *string);
 
+#ifndef ANY_LOG_NO_COLOR
+
 // The default format macros for all logging function uses the global
 // any_log_color to get the color sequence to use when printing the logs.
 //
 // By default this global points to any_log_colors_enabled, but you can
 // set it to any_log_colors_disabled or to a custom array of your choice.
 //
-// The array you give should have length ANY_LOG_ALL + 3 and the following layout
+// Your custom color array should have length ANY_LOG_COLOR_ALL.
+// Alternatively you can change the default colors by defining
+// ANY_LOG_COLOR_[...]_DEFAULT. For example:
 //
-// - from ANY_LOG_PANIC to ANY_LOG_TRACE: the colors indexed by log levels
-// - ANY_LOG_ALL: the color reset sequence
-// - ANY_LOG_ALL + 1: the color for the module
-// - ANY_LOG_ALL + 2: the color for the function
+//    #define ANY_LOG_COLOR_FUNC_DEFAULT "\x1b[1m"
+//    #include "any_log.h"
 //
-// If the macro ANY_LOG_NO_COLOR by default colors will be disabled.
+// If you changed the default format in the implementation (by redefining
+// ANY_LOG_FORMAT_*, ANY_LOG_VALUE_* and ANY_LOG_PANIC_*), these variables
+// can be safely ignored and can use whatever method you prefer to get the colors.
 //
-// NOTE: If you changed the default format in the implementation
-//       (by redefining ANY_LOG_FORMAT_*, ANY_LOG_VALUE_* and ANY_LOG_PANIC_*),
-//       you can safely ignore these variables and use whatever method you
-//       prefer to get the colors.
+// In that case you may want to disable colors altogether by defining
+// ANY_LOG_NO_COLOR.
 //
 extern const char **any_log_colors;
+
+typedef enum {
+    ANY_LOG_COLOR_PANIC,
+    ANY_LOG_COLOR_ERROR,
+    ANY_LOG_COLOR_WARN,
+    ANY_LOG_COLOR_INFO,
+    ANY_LOG_COLOR_DEBUG,
+    ANY_LOG_COLOR_TRACE,
+    ANY_LOG_COLOR_MODULE,
+    ANY_LOG_COLOR_FUNC,
+    ANY_LOG_COLOR_RESET,
+    ANY_LOG_COLOR_ALL,
+} any_log_color_t;
+
+// Little helper for getting the colors
+//
+#define ANY_LOG_COLOR_GET(c) any_log_colors[c]
 
 // This array contains the default colors.
 //
 // See ANY_LOG_[level]_COLOR, ANY_LOG_RESET_COLOR, ANY_LOG_MODULE_COLOR and
 // ANY_LOG_FUNC_COLOR in the implementation.
 //
-extern const char *any_log_colors_enabled[ANY_LOG_ALL + 3];
+extern const char *any_log_colors_enabled[ANY_LOG_COLOR_ALL];
 
 // This array contains empty strings.
-extern const char *any_log_colors_disabled[ANY_LOG_ALL + 3];
+//
+extern const char *any_log_colors_disabled[ANY_LOG_COLOR_ALL];
+
+#endif
 
 // NOTE: You should never call the functions below directly!
 //       See the above explanations on how to use logging.
@@ -455,73 +477,76 @@ any_log_level_t any_log_level_from_string(const char *string)
     return ANY_LOG_ALL;
 }
 
+#ifndef ANY_LOG_NO_COLOR
+
 // These colors related variables are provided just to provide a uniform
 // interface for setting the colors. If you decide to change the default
 // log format macros, feel free to ignore all this variables.
 //
-// If the macro ANY_LOG_NO_COLOR is defined, any_log_colors_disabled
-// will be used instead of any_log_colors_enabled.
-//
-const char **any_log_colors =
-#ifdef ANY_LOG_NO_COLOR
-    any_log_colors_disabled;
-#else
-    any_log_colors_enabled;
-#endif
+const char **any_log_colors = any_log_colors_enabled;
 
 // Log colors indexed by log level, with the addition of special colors
 // for func, module and reset sequence.
 //
-#ifndef ANY_LOG_PANIC_COLOR
-#define ANY_LOG_PANIC_COLOR "\x1b[1;91m"
+#ifndef ANY_LOG_COLOR_PANIC_DEFAULT
+#define ANY_LOG_COLOR_PANIC_DEFAULT "\x1b[1;91m"
 #endif
-#ifndef ANY_LOG_ERROR_COLOR
-#define ANY_LOG_ERROR_COLOR "\x1b[1;31m"
+#ifndef ANY_LOG_COLOR_ERROR_DEFAULT
+#define ANY_LOG_COLOR_ERROR_DEFAULT "\x1b[1;31m"
 #endif
-#ifndef ANY_LOG_WARN_COLOR
-#define ANY_LOG_WARN_COLOR "\x1b[1;33m"
+#ifndef ANY_LOG_COLOR_WARN_DEFAULT
+#define ANY_LOG_COLOR_WARN_DEFAULT "\x1b[1;33m"
 #endif
-#ifndef ANY_LOG_INFO_COLOR
-#define ANY_LOG_INFO_COLOR "\x1b[1;96m"
+#ifndef ANY_LOG_COLOR_INFO_DEFAULT
+#define ANY_LOG_COLOR_INFO_DEFAULT "\x1b[1;96m"
 #endif
-#ifndef ANY_LOG_DEBUG_COLOR
-#define ANY_LOG_DEBUG_COLOR "\x1b[1;37m"
+#ifndef ANY_LOG_COLOR_DEBUG_DEFAULT
+#define ANY_LOG_COLOR_DEBUG_DEFAULT "\x1b[1;37m"
 #endif
-#ifndef ANY_LOG_TRACE_COLOR
-#define ANY_LOG_TRACE_COLOR "\x1b[1;90m"
+#ifndef ANY_LOG_COLOR_TRACE_DEFAULT
+#define ANY_LOG_COLOR_TRACE_DEFAULT "\x1b[1;90m"
 #endif
-#ifndef ANY_LOG_RESET_COLOR
-#define ANY_LOG_RESET_COLOR "\x1b[0m"
+#ifndef ANY_LOG_COLOR_RESET_DEFAULT
+#define ANY_LOG_COLOR_RESET_DEFAULT "\x1b[0m"
 #endif
-#ifndef ANY_LOG_MODULE_COLOR
-#define ANY_LOG_MODULE_COLOR ""
+#ifndef ANY_LOG_COLOR_MODULE_DEFAULT
+#define ANY_LOG_COLOR_MODULE_DEFAULT ""
 #endif
-#ifndef ANY_LOG_FUNC_COLOR
-#define ANY_LOG_FUNC_COLOR "\x1b[1m"
+#ifndef ANY_LOG_COLOR_FUNC_DEFAULT
+#define ANY_LOG_COLOR_FUNC_DEFAULT "\x1b[1m"
 #endif
 
 const char *any_log_colors_enabled[ANY_LOG_ALL + 3] = {
-    ANY_LOG_PANIC_COLOR,
-    ANY_LOG_ERROR_COLOR,
-    ANY_LOG_WARN_COLOR,
-    ANY_LOG_INFO_COLOR ,
-    ANY_LOG_DEBUG_COLOR,
-    ANY_LOG_TRACE_COLOR,
-    ANY_LOG_RESET_COLOR,
-    ANY_LOG_MODULE_COLOR,
-    ANY_LOG_FUNC_COLOR
+    ANY_LOG_COLOR_PANIC_DEFAULT,
+    ANY_LOG_COLOR_ERROR_DEFAULT,
+    ANY_LOG_COLOR_WARN_DEFAULT,
+    ANY_LOG_COLOR_INFO_DEFAULT,
+    ANY_LOG_COLOR_DEBUG_DEFAULT,
+    ANY_LOG_COLOR_TRACE_DEFAULT,
+    ANY_LOG_COLOR_MODULE_DEFAULT,
+    ANY_LOG_COLOR_FUNC_DEFAULT,
+    ANY_LOG_COLOR_RESET_DEFAULT,
 };
 
-const char *any_log_colors_disabled[ANY_LOG_ALL + 3] = {
-    "", "", "", "", "", "", "",
+const char *any_log_colors_disabled[ANY_LOG_COLOR_ALL] = {
+    "", "", "", "", "", "", "", "", ""
 };
+
+#else
+
+// Define this to not break the default format macros
+//
+#define ANY_LOG_COLOR_GET(c) ""
+
+#endif
 
 // Format for any_log_format (used at the start)
 #ifndef ANY_LOG_FORMAT_BEFORE
 #define ANY_LOG_FORMAT_BEFORE(stream, level, module, func) \
-    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], \
-            any_log_colors[ANY_LOG_ALL + 2], func, any_log_colors[ANY_LOG_ALL], \
-            any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL])
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_FUNC), func, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
+            ANY_LOG_COLOR_GET(level), any_log_level_strings[level], ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET))
 #endif
 
 // Format for any_log_format (used at the end)
@@ -566,9 +591,10 @@ void any_log_format(any_log_level_t level, const char *module,
 // Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
 #define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message) \
-    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: %s [", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], \
-            any_log_colors[ANY_LOG_ALL + 2], func, any_log_colors[ANY_LOG_ALL], \
-            any_log_colors[level], any_log_level_strings[level], any_log_colors[ANY_LOG_ALL], message)
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: %s [", \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_FUNC), func, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
+            ANY_LOG_COLOR_GET(level), any_log_level_strings[level], ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), message)
 #endif
 
 // Format for any_log_value (used at the end)
@@ -647,7 +673,9 @@ void any_log_format(any_log_level_t level, const char *module,
 #define ANY_LOG_VALUE_PAIR_SEP ", "
 #endif
 
-// NOTE: This function should be called with at least one pair
+// NOTE: This function should be called with at least one parameter after message.
+//       The log_value_[level] macros automatically add a NULL.
+//
 void any_log_value(any_log_level_t level, const char *module,
                    const char *func, const char *message, ...)
 {
@@ -759,16 +787,18 @@ tdefault:;
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_BEFORE
 #define ANY_LOG_PANIC_BEFORE(stream, file, line, module, func) \
-    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL], \
-            any_log_colors[ANY_LOG_ALL + 2], func, any_log_colors[ANY_LOG_ALL], \
-            any_log_colors[ANY_LOG_PANIC], any_log_level_strings[ANY_LOG_PANIC], any_log_colors[ANY_LOG_ALL])
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_FUNC), func, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
+            ANY_LOG_COLOR_GET(ANY_LOG_PANIC), any_log_level_strings[ANY_LOG_PANIC], ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET))
 #endif
 
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_AFTER
 #define ANY_LOG_PANIC_AFTER(stream, file, line, module, func) \
-    fprintf(stream, "\n%spanic was invoked from%s %s:%d (%s%s%s)\n", any_log_colors[ANY_LOG_PANIC], \
-            any_log_colors[ANY_LOG_ALL], file, line, any_log_colors[ANY_LOG_ALL + 1], module, any_log_colors[ANY_LOG_ALL])
+    fprintf(stream, "\n%spanic was invoked from%s %s:%d (module %s%s%s)\n", \
+            ANY_LOG_COLOR_GET(ANY_LOG_PANIC), ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), file, line,  \
+            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET))
 #endif
 
 // NOTE: This function *exceptionally* gets more location information

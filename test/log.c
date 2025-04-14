@@ -1,9 +1,42 @@
+#define _POSIX_SOURCE
+
 #include <stdbool.h>
 #include <stdint.h>
 
+#if __GNUC__
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <execinfo.h>
+#include <unistd.h>
+
+void print_backtrace(FILE *stream)
+{
+    int nptrs;
+    void *buffer[100];
+
+    nptrs = backtrace(buffer, 100);
+    fprintf(stream, "\nbacktrace() returned %d addresses\n", nptrs);
+    backtrace_symbols_fd(buffer, nptrs, fileno(stream));
+}
+
+#define ANY_LOG_PANIC_AFTER(stream, file, line, module, func) \
+    do { \
+        print_backtrace(stream); \
+        fprintf(stream, "%spanic was invoked from%s %s:%d (module %s%s%s)\n", \
+                ANY_LOG_COLOR_GET(ANY_LOG_PANIC), ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), file, line,  \
+                ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET)); \
+    } while (false)
+
+#endif
+
 //#define ANY_LOG_LOCKING
 #define ANY_LOG_IMPLEMENT
-#define ANY_LOG_MODULE "test"
+//#define ANY_LOG_MODULE "test"
+
+#define STR2(x) #x
+#define STR(x) STR2(x)
+#define ANY_LOG_SOURCE __FILE__ ":" STR(__LINE__)
 
 // Print in a JSON like way
 
@@ -62,6 +95,15 @@ void pairs_format(FILE *stream, struct pair *pairs)
             fprintf(stream, ", ");
     }
     fprintf(stream, "]");
+}
+
+void adios(int x)
+{
+    if (x == 0) {
+        log_panic("Adios");
+    }
+
+    adios(x - 1);
 }
 
 int main()
@@ -141,7 +183,7 @@ int main()
     log_warn("Hello");
     log_error("Hello");
 
-    log_panic("Adios");
+    adios(10);
 
     return 0;
 }
