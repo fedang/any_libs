@@ -1,4 +1,4 @@
-// any_log v0.3.2
+// any_log v0.4.0
 //
 // A single-file library that provides a simple and somewhat opinionated
 // interface for logging and structured logging.
@@ -52,19 +52,6 @@ typedef enum {
     ANY_LOG_ALL,
 } any_log_level_t;
 
-// The value of ANY_LOG_CONTEXT should be used to pass some
-// extra information or context to the logging functions.
-// By default it is empty.
-//
-// Before including the header simply define your custom ANY_LOG_CONTEXT.
-//
-//    #define ANY_LOG_CONTEXT get_thread_name()
-//    #include "any_log.h"
-//
-#ifndef ANY_LOG_CONTEXT
-#define ANY_LOG_CONTEXT ""
-#endif
-
 // The value of ANY_LOG_MODULE is used to indicate the current module.
 // By default it is defined as __FILE__, which should expand to the
 // source file path (relative to the compiler cwd).
@@ -107,7 +94,7 @@ typedef enum {
 // NOTE: log_panic will always terminate the program and should be used only
 //       for non recoverable situations! For normal errors just use log_error.
 //
-#define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_panic(...) any_log_panic(__FILE__, __LINE__, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
 // log_[level] provide normal printf style logging.
 //
@@ -124,20 +111,20 @@ typedef enum {
 // respectively. As this will work only if they are defined before every header
 // include, it is recommended to define this from the compiler.
 //
-#define log_error(...) any_log_format(ANY_LOG_ERROR, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
-#define log_warn(...)  any_log_format(ANY_LOG_WARN,  ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
-#define log_info(...)  any_log_format(ANY_LOG_INFO,  ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_error(...) any_log_format(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_warn(...)  any_log_format(ANY_LOG_WARN,  ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_info(...)  any_log_format(ANY_LOG_INFO,  ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 
 #ifdef ANY_LOG_NO_DEBUG
 #define log_debug(...)
 #else
-#define log_debug(...) any_log_format(ANY_LOG_DEBUG, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_debug(...) any_log_format(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #endif
 
 #ifdef ANY_LOG_NO_TRACE
 #define log_trace(...)
 #else
-#define log_trace(...) any_log_format(ANY_LOG_TRACE, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
+#define log_trace(...) any_log_format(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__)
 #endif
 
 // log_value_[level] provide structured logging.
@@ -197,7 +184,7 @@ typedef enum {
 //    #define ANY_LOG_IMPLEMENT
 //    #define ANY_LOG_NO_GENERIC
 //
-//    #define ANY_LOG_VALUE_BEFORE(stream, level, context, module, func, message)
+//    #define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message)
 //        fprintf(stream, "{\"module\": \"%s\", \"function\": \"%s\", \"level\": \"%s\", \"message\": \"%s\", ",
 //                module, func, any_log_level_strings[level], message)
 //
@@ -225,7 +212,7 @@ typedef enum {
 //    #define ANY_LOG_VALUE_STRING(stream, key, value)
 //        fprintf(stream, "\"%s \": \"%s\"", key, value)
 //
-//    #define ANY_LOG_VALUE_AFTER(stream, level, context, module, func, message)
+//    #define ANY_LOG_VALUE_AFTER(stream, level, module, func, message)
 //        fprintf(stream, "}\n")
 //
 //    #include "any_log.h"
@@ -233,21 +220,21 @@ typedef enum {
 // As with log_trace and log_debug, log_value_trace and log_value_debug can be
 // disabled by defining ANY_LOG_NO_TRACE and ANY_LOG_NO_DEBUG respectively.
 //
-#define log_value_error(...) any_log_value(ANY_LOG_ERROR, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-#define log_value_warn(...)  any_log_value(ANY_LOG_WARN,  ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-#define log_value_info(...)  any_log_value(ANY_LOG_INFO,  ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
-#define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_error(...) any_log_value(ANY_LOG_ERROR, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_warn(...)  any_log_value(ANY_LOG_WARN,  ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_info(...)  any_log_value(ANY_LOG_INFO,  ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 
 #ifdef ANY_LOG_NO_DEBUG
 #define log_value_debug(...)
 #else
-#define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_debug(...) any_log_value(ANY_LOG_DEBUG, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #endif
 
 #ifdef ANY_LOG_NO_TRACE
 #define log_value_trace(...)
 #else
-#define log_value_trace(...) any_log_value(ANY_LOG_TRACE, ANY_LOG_CONTEXT, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
+#define log_value_trace(...) any_log_value(ANY_LOG_TRACE, ANY_LOG_MODULE, ANY_LOG_FUNC, __VA_ARGS__, (char *)NULL)
 #endif
 
 #ifndef ANY_LOG_NO_GENERIC
@@ -378,7 +365,6 @@ typedef enum {
     ANY_LOG_COLOR_INFO,
     ANY_LOG_COLOR_DEBUG,
     ANY_LOG_COLOR_TRACE,
-    ANY_LOG_COLOR_CONTEXT,
     ANY_LOG_COLOR_MODULE,
     ANY_LOG_COLOR_FUNC,
     ANY_LOG_COLOR_RESET,
@@ -405,20 +391,20 @@ extern const char *any_log_colors_disabled[ANY_LOG_COLOR_ALL];
 // NOTE: You should never call the functions below directly!
 //       See the above explanations on how to use logging.
 
-ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
-ANY_LOG_ATTRIBUTE(nonnull(2, 3, 4, 5))
-void any_log_format(any_log_level_t level, const char *context,
-                    const char *module, const char *func, const char *format, ...);
+ANY_LOG_ATTRIBUTE(format(printf, 4, 5))
+ANY_LOG_ATTRIBUTE(nonnull(2, 3, 4))
+void any_log_format(any_log_level_t level, const char *module,
+                    const char *func, const char *format, ...);
 
-ANY_LOG_ATTRIBUTE(nonnull(2, 3, 4, 5))
-void any_log_value(any_log_level_t level, const char *context,
-                   const char *module, const char *func, const char *message, ...);
+ANY_LOG_ATTRIBUTE(nonnull(2, 3, 4))
+void any_log_value(any_log_level_t level, const char *module,
+                   const char *func, const char *message, ...);
 
 ANY_LOG_NORETURN
-ANY_LOG_ATTRIBUTE(format(printf, 6, 7))
-ANY_LOG_ATTRIBUTE(nonnull(1, 3, 4, 5, 6))
-void any_log_panic(const char *file, int line, const char *context,
-                   const char *module, const char *func, const char *format, ...);
+ANY_LOG_ATTRIBUTE(format(printf, 5, 6))
+ANY_LOG_ATTRIBUTE(nonnull(1, 3, 4, 5))
+void any_log_panic(const char *file, int line, const char *module,
+                   const char *func, const char *format, ...);
 
 #endif
 
@@ -529,9 +515,6 @@ const char **any_log_colors = any_log_colors_enabled;
 #ifndef ANY_LOG_COLOR_RESET_DEFAULT
 #define ANY_LOG_COLOR_RESET_DEFAULT "\x1b[0m"
 #endif
-#ifndef ANY_LOG_COLOR_CONTEXT_DEFAULT
-#define ANY_LOG_COLOR_CONTEXT_DEFAULT ""
-#endif
 #ifndef ANY_LOG_COLOR_MODULE_DEFAULT
 #define ANY_LOG_COLOR_MODULE_DEFAULT ""
 #endif
@@ -546,14 +529,13 @@ const char *any_log_colors_enabled[ANY_LOG_COLOR_ALL] = {
     ANY_LOG_COLOR_INFO_DEFAULT,
     ANY_LOG_COLOR_DEBUG_DEFAULT,
     ANY_LOG_COLOR_TRACE_DEFAULT,
-    ANY_LOG_COLOR_CONTEXT_DEFAULT,
     ANY_LOG_COLOR_MODULE_DEFAULT,
     ANY_LOG_COLOR_FUNC_DEFAULT,
     ANY_LOG_COLOR_RESET_DEFAULT,
 };
 
 const char *any_log_colors_disabled[ANY_LOG_COLOR_ALL] = {
-    "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "",
 };
 
 #else
@@ -566,9 +548,8 @@ const char *any_log_colors_disabled[ANY_LOG_COLOR_ALL] = {
 
 // Format for any_log_format (used at the start)
 #ifndef ANY_LOG_FORMAT_BEFORE
-#define ANY_LOG_FORMAT_BEFORE(stream, level, context, module, func) \
-    fprintf(stream, "[%s%s%s%s%s%s%s %s%s%s] %s%s%s: ", \
-            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_CONTEXT), context, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), *context ? " " : "", \
+#define ANY_LOG_FORMAT_BEFORE(stream, level, module, func) \
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_FUNC), func, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
             ANY_LOG_COLOR_GET(level), any_log_level_strings[level], ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET))
@@ -576,12 +557,12 @@ const char *any_log_colors_disabled[ANY_LOG_COLOR_ALL] = {
 
 // Format for any_log_format (used at the end)
 #ifndef ANY_LOG_FORMAT_AFTER
-#define ANY_LOG_FORMAT_AFTER(stream, level, context, module, func) \
+#define ANY_LOG_FORMAT_AFTER(stream, level, module, func) \
     fprintf(stream, "\n")
 #endif
 
-void any_log_format(any_log_level_t level, const char *context,
-                     const char *module, const char *func, const char *format, ...)
+void any_log_format(any_log_level_t level, const char *module,
+                    const char *func, const char *format, ...)
 {
     if (level > any_log_level)
         return;
@@ -589,21 +570,20 @@ void any_log_format(any_log_level_t level, const char *context,
     FILE *stream = any_log_streams[level];
     ANY_LOG_FLOCK(stream);
 
-    ANY_LOG_FORMAT_BEFORE(stream, level, context, module, func);
+    ANY_LOG_FORMAT_BEFORE(stream, level, module, func);
 
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);
     va_end(args);
 
-    ANY_LOG_FORMAT_AFTER(stream, level, context, module, func);
+    ANY_LOG_FORMAT_AFTER(stream, level, module, func);
 
     ANY_LOG_FUNLOCK(stream);
 
     // NOTE: Suppress compiler warning if the user customizes the format string
     //       and doesn't use these values in it
 
-    (void)context;
     (void)module;
     (void)func;
 }
@@ -617,9 +597,8 @@ void any_log_format(any_log_level_t level, const char *context,
 
 // Format for any_log_value (used at the start)
 #ifndef ANY_LOG_VALUE_BEFORE
-#define ANY_LOG_VALUE_BEFORE(stream, level, context, module, func, message) \
-    fprintf(stream, "[%s%s%s%s%s%s%s %s%s%s] %s%s%s: %s [", \
-            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_CONTEXT), context, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), *context ? " " : "", \
+#define ANY_LOG_VALUE_BEFORE(stream, level, module, func, message) \
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: %s [", \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_FUNC), func, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
             ANY_LOG_COLOR_GET(level), any_log_level_strings[level], ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), message)
@@ -627,7 +606,7 @@ void any_log_format(any_log_level_t level, const char *context,
 
 // Format for any_log_value (used at the end)
 #ifndef ANY_LOG_VALUE_AFTER
-#define ANY_LOG_VALUE_AFTER(stream, level, context, module, func, message) \
+#define ANY_LOG_VALUE_AFTER(stream, level, module, func, message) \
     fprintf(stream, "]\n")
 #endif
 
@@ -704,8 +683,8 @@ void any_log_format(any_log_level_t level, const char *context,
 // NOTE: This function should be called with at least one parameter after message.
 //       The log_value_[level] macros automatically add a NULL.
 //
-void any_log_value(any_log_level_t level, const char *context,
-                   const char *module, const char *func, const char *message, ...)
+void any_log_value(any_log_level_t level, const char *module,
+                   const char *func, const char *message, ...)
 {
     if (level > any_log_level)
         return;
@@ -713,7 +692,7 @@ void any_log_value(any_log_level_t level, const char *context,
     FILE *stream = any_log_streams[level];
     ANY_LOG_FLOCK(stream);
 
-    ANY_LOG_VALUE_BEFORE(stream, level, context, module, func, message);
+    ANY_LOG_VALUE_BEFORE(stream, level, module, func, message);
 
     va_list args;
     va_start(args, message);
@@ -793,10 +772,9 @@ tdefault:;
 
     va_end(args);
 
-    ANY_LOG_VALUE_AFTER(stream, level, context, module, func, message);
+    ANY_LOG_VALUE_AFTER(stream, level, module, func, message);
     ANY_LOG_FUNLOCK(stream);
 
-    (void)context;
     (void)module;
     (void)func;
     (void)message;
@@ -810,14 +788,13 @@ tdefault:;
 // NOTE: This function should never return!
 //
 #ifndef ANY_LOG_EXIT
-#define ANY_LOG_EXIT(file, line, context, module, func) abort()
+#define ANY_LOG_EXIT(file, line, module, func) abort()
 #endif
 
 // Format for any_log_panic (used at the start)
 #ifndef ANY_LOG_PANIC_BEFORE
-#define ANY_LOG_PANIC_BEFORE(stream, file, line, context, module, func) \
-    fprintf(stream, "[%s%s%s%s%s%s%s %s%s%s] %s%s%s: ", \
-            ANY_LOG_COLOR_GET(ANY_LOG_COLOR_CONTEXT), context, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), *context ? " " : "", \
+#define ANY_LOG_PANIC_BEFORE(stream, file, line, module, func) \
+    fprintf(stream, "[%s%s%s %s%s%s] %s%s%s: ", \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_FUNC), func, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), \
             ANY_LOG_COLOR_GET(ANY_LOG_PANIC), any_log_level_strings[ANY_LOG_PANIC], ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET))
@@ -825,7 +802,7 @@ tdefault:;
 
 // Format for any_log_panic (used at the end)
 #ifndef ANY_LOG_PANIC_AFTER
-#define ANY_LOG_PANIC_AFTER(stream, file, line, context, module, func) \
+#define ANY_LOG_PANIC_AFTER(stream, file, line, module, func) \
     fprintf(stream, "\n%spanic was invoked from%s %s:%d (%s%s%s)\n", \
             ANY_LOG_COLOR_GET(ANY_LOG_PANIC), ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET), file, line,  \
             ANY_LOG_COLOR_GET(ANY_LOG_COLOR_MODULE), module, ANY_LOG_COLOR_GET(ANY_LOG_COLOR_RESET))
@@ -834,30 +811,29 @@ tdefault:;
 // NOTE: This function *exceptionally* gets more location information
 //       because we want to be specific at least for fatal errors
 //
-void any_log_panic(const char *file, int line, const char *context,
-                   const char *module, const char *func, const char *format, ...)
+void any_log_panic(const char *file, int line, const char *module,
+                   const char *func, const char *format, ...)
 {
     FILE *stream = any_log_streams[ANY_LOG_PANIC];
     ANY_LOG_FLOCK(stream);
 
-    ANY_LOG_PANIC_BEFORE(stream, file, line, context, module, func);
+    ANY_LOG_PANIC_BEFORE(stream, file, line, module, func);
 
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);
     va_end(args);
 
-    ANY_LOG_PANIC_AFTER(stream, file, line, context, module, func);
+    ANY_LOG_PANIC_AFTER(stream, file, line, module, func);
 
     ANY_LOG_FUNLOCK(stream);
 
     (void)file;
     (void)line;
-    (void)context;
     (void)module;
     (void)func;
 
-    ANY_LOG_EXIT(file, line, context, module, func);
+    ANY_LOG_EXIT(file, line, module, func);
 
     // In a way or another, this function shall not return
     abort();
